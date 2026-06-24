@@ -22,3 +22,6 @@ txchain.txt
 *.swp
 *~
 .DS_Store
+
+# Session scratchpad (local only)
+.scratchpad.md

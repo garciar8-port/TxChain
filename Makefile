@@ -33,5 +33,6 @@ monitor: monitor.cpp
 
 clean:
 	rm -f $(EXECS)
+	rm -rf *.dSYM
 
 .PHONY: all clean

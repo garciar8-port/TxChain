@@ -1,0 +1,24 @@
+# Compiled object files
+*.o
+*.obj
+
+# Executables (built by `make all`)
+serverM
+serverA
+serverB
+serverC
+client
+monitor
+*.out
+
+# Generated at runtime by TXLIST
+txchain.txt
+
+# Submission tarball
+*.tar
+*.tar.gz
+
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store

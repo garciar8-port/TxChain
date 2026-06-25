@@ -4,8 +4,8 @@
 //   ./client <username>                     -> CHECK WALLET
 //   ./client <username1> <username2> <amt>  -> TXCOINS
 //
-// Phase 1: boot, connect to Server-M over TCP, send the request, print the
-// "sent" message. The response is received in Phase 2.
+// Phase 2: after sending the request, the client receives the Main Server's
+// reply and prints the corresponding on-screen result message.
 //
 // TCP client setup adapted from Beej's Guide to Network Programming
 // (stream sockets / client): http://www.beej.us/guide/bgnet/
@@ -42,10 +42,7 @@ int main(int argc, char *argv[]) {
 
     // Create the TCP socket and connect to the Main Server.
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        perror("client: socket");
-        exit(1);
-    }
+    if (sockfd < 0) { perror("client: socket"); exit(1); }
 
     struct sockaddr_in serv;
     memset(&serv, 0, sizeof(serv));
@@ -58,29 +55,62 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    // Build and send the request, then print the corresponding "sent" line.
     char msg[BUF_SIZE];
+    char reply[BUF_SIZE];
+
     if (argc == 2) {
-        // CHECK WALLET
+        // ---- CHECK WALLET ----
         snprintf(msg, sizeof(msg), "CHECK_WALLET %s", argv[1]);
-        if (send(sockfd, msg, strlen(msg), 0) < 0) {
-            perror("client: send");
-            exit(1);
-        }
+        if (send(sockfd, msg, strlen(msg), 0) < 0) { perror("client: send"); exit(1); }
         printf("\"%s\" sent a balance enquiry request to the main server.\n", argv[1]);
-    } else {
-        // TXCOINS: argv[1]=sender, argv[2]=receiver, argv[3]=amount
-        snprintf(msg, sizeof(msg), "TXCOINS %s %s %s", argv[1], argv[2], argv[3]);
-        if (send(sockfd, msg, strlen(msg), 0) < 0) {
-            perror("client: send");
-            exit(1);
+        fflush(stdout);
+
+        ssize_t n = recv(sockfd, reply, sizeof(reply) - 1, 0);
+        if (n <= 0) { close(sockfd); exit(1); }
+        reply[n] = '\0';
+
+        if (strncmp(reply, "FOUND", 5) == 0) {
+            long balance = strtol(reply + 5, NULL, 10);
+            printf("The current balance of \"%s\" is : %ld txcoins.\n", argv[1], balance);
+        } else { // NOTFOUND
+            printf("\"%s\" is not a part of the network.\n", argv[1]);
         }
+        fflush(stdout);
+    } else {
+        // ---- TXCOINS ---- argv[1]=sender, argv[2]=receiver, argv[3]=amount
+        snprintf(msg, sizeof(msg), "TXCOINS %s %s %s", argv[1], argv[2], argv[3]);
+        if (send(sockfd, msg, strlen(msg), 0) < 0) { perror("client: send"); exit(1); }
         printf("%s has requested to transfer %s txcoins to %s\n",
                argv[1], argv[3], argv[2]);
-    }
-    fflush(stdout);
+        fflush(stdout);
 
-    // Phase 1 ends here. Phase 2: wait for and print the Main Server's response.
+        ssize_t n = recv(sockfd, reply, sizeof(reply) - 1, 0);
+        if (n <= 0) { close(sockfd); exit(1); }
+        reply[n] = '\0';
+
+        if (strncmp(reply, "SUCCESS", 7) == 0) {
+            long bal = strtol(reply + 7, NULL, 10);
+            printf("%s successfully transferred %s txcoins to %s. "
+                   "The current balance of %s is : %ld txcoins.\n",
+                   argv[1], argv[3], argv[2], argv[1], bal);
+        } else if (strncmp(reply, "INSUFFICIENT", 12) == 0) {
+            long bal = strtol(reply + 12, NULL, 10);
+            printf("%s was unable to transfer %s txcoins to %s because of "
+                   "insufficient balance. The current balance of %s is : %ld txcoins.\n",
+                   argv[1], argv[3], argv[2], argv[1], bal);
+        } else if (strcmp(reply, "MISSINGSENDER") == 0) {
+            printf("Unable to proceed with the transaction as %s is not part "
+                   "of the network.\n", argv[1]);
+        } else if (strcmp(reply, "MISSINGRECEIVER") == 0) {
+            printf("Unable to proceed with the transaction as %s is not part "
+                   "of the network.\n", argv[2]);
+        } else if (strcmp(reply, "MISSINGBOTH") == 0) {
+            printf("Unable to proceed with the transaction as %s and %s are not "
+                   "part of the network.\n", argv[1], argv[2]);
+        }
+        fflush(stdout);
+    }
+
     close(sockfd);
     return 0;
 }

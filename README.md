@@ -9,8 +9,8 @@ three backend servers (`serverA/B/C`), each owning a block file, plus a `client`
 and a `monitor`. The Main Server talks to the client and monitor over **TCP** and
 to the backend servers over **UDP**.
 
-> Status: Phases 1 and 2 implemented (boot/TCP setup; CHECK WALLET & TXCOINS).
-> Phase 3 (TXLIST) is in progress.
+> Status: Phases 1, 2, and 3 implemented (boot/TCP setup; CHECK WALLET & TXCOINS;
+> TXLIST). Phase 4 (extra credit) not attempted.
 
 ## Ports (USC ID last 3 digits = 875)
 
@@ -75,14 +75,25 @@ e.g. `5 Fklqpdb Rolyhu 452` (serial 5, Chinmay → Oliver, 129).
   / `MISSINGSENDER` / `MISSINGRECEIVER` / `MISSINGBOTH`
 
 ### monitor ↔ Server-M (TCP)
-- monitor → M: `TXLIST`  (response added in Phase 3)
+- monitor → M: `TXLIST`
+- M → monitor: `OK` (confirmation that `txchain.txt` was generated)
 
 ### Server-M ↔ backends (UDP)
 - M → backend: `QUERY <encName1> <encName2>`  (`<encName2>` is `*` when only one
   name is queried) — backend replies with `<maxSerial>` on the first line followed
   by each matching ciphertext row.
+- M → backend: `ALL` — backend replies with `<maxSerial>` followed by every
+  ciphertext row (used to build the TXLIST statement).
 - M → backend: `NEW <serial> <encSender> <encReceiver> <encAmount>` — backend
   appends the row to its block file (with a trailing `\n`) and replies `OK`.
+
+## TXLIST (txchain.txt)
+
+On a `TXLIST` request, Server-M pulls every transaction from A/B/C (via `ALL`,
+including rows appended since boot), sorts them ascending by serial number, and
+writes `txchain.txt` in the source directory. Each line is **decrypted**:
+`<serial> <sender> <receiver> <amount>` terminated by `\n`. The file is
+regenerated (overwritten) on each request.
 
 ## Balance and transaction rules
 
@@ -104,6 +115,10 @@ e.g. `5 Fklqpdb Rolyhu 452` (serial 5, Chinmay → Oliver, 129).
   validation round to A, B, C). The subsequent append to the randomly chosen
   backend is not separately announced by M, though that backend still prints its
   own "received a request / finished sending the response" lines.
+- **TXLIST backend queries are silent on Server-M's terminal.** The project
+  tables define no on-screen message for M querying the backends during TXLIST,
+  so M only prints the "received a sorted list request from the monitor" line;
+  the backends still print their own received/finished lines.
 - **Amounts are treated as integers.**
 - **Message-format judgment calls** (the project doc's tables and example output
   disagree in places; the example was followed where one exists):

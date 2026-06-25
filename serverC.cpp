@@ -81,6 +81,23 @@ static string handle_query(const string &name1, const string &name2) {
     return out.str();
 }
 
+// Build a reply with every stored row (used by the monitor's TXLIST): first
+// line = max serial, then every ciphertext row.
+static string handle_all() {
+    long max_serial = 0;
+    string rows;
+    for (size_t i = 0; i < g_txns.size(); i++) {
+        long serial; string s, r, amt;
+        if (!parse_row(g_txns[i], serial, s, r, amt)) continue;
+        if (serial > max_serial) max_serial = serial;
+        rows += "\n";
+        rows += g_txns[i];
+    }
+    std::ostringstream out;
+    out << max_serial << rows;
+    return out.str();
+}
+
 // Append a new (already-encrypted) transaction to memory and to the block file.
 static string handle_new(const string &rest) {
     // rest = "<serial> <encS> <encR> <encAmt>"
@@ -140,6 +157,8 @@ int main() {
         if (op == "QUERY") {
             string n1, n2; iss >> n1 >> n2;
             reply = handle_query(n1, n2);
+        } else if (op == "ALL") {
+            reply = handle_all();
         } else if (op == "NEW") {
             string rest;
             std::getline(iss, rest);                 // " <serial> <encS> <encR> <encAmt>"

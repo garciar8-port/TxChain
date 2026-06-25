@@ -64,7 +64,15 @@ int main(int argc, char *argv[]) {
     printf("Monitor sent a sorted list request to the main server.\n");
     fflush(stdout);
 
-    // Phase 1 ends here. Phase 3: wait for and print the confirmation.
+    // Wait for the Main Server's confirmation that txchain.txt was generated.
+    char reply[BUF_SIZE];
+    ssize_t n = recv(sockfd, reply, sizeof(reply) - 1, 0);
+    if (n > 0) {
+        reply[n] = '\0';
+        printf("Successfully received a sorted list of transactions from the main server.\n");
+        fflush(stdout);
+    }
+
     close(sockfd);
     return 0;
 }

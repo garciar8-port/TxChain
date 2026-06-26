@@ -1,7 +1,7 @@
 # TxChain — EE 450 Final Project
 
-**Name (as in class list):** Rodrigo Garcia  <!-- TODO: confirm exact spelling -->
-**USC Student ID:** XXXXXXX875  <!-- TODO: fill in full 10-digit USC ID -->
+**Name (as in class list):** Rodrigo Garcia
+**USC Student ID:** 2105066875
 **Extra credit (Phase 4):** Not attempted.
 
 A simplified blockchain transaction service. A Main Server (`serverM`) coordinates

@@ -31,6 +31,8 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <fstream>
+#include <algorithm>
 
 using std::string;
 using std::vector;
@@ -285,7 +287,33 @@ static void handle_client(int listen_fd) {
     close(conn);
 }
 
-// Accept one monitor connection (TXLIST). Phase 3 fills in the response.
+static bool by_serial(const Txn &a, const Txn &b) { return a.serial < b.serial; }
+
+// Handle the monitor's TXLIST: gather every transaction from A/B/C, sort by
+// serial, and write the fully-decrypted txchain.txt, then confirm to the monitor.
+static void do_txlist(int conn) {
+    vector<Txn> all;
+    long max_serial = 0;
+    for (int i = 0; i < 3; i++) {
+        string reply = udp_request(i, "ALL");   // M-silent: no Table-7 entry exists
+        parse_query_reply(reply, all, max_serial);
+    }
+    (void)max_serial;
+    std::sort(all.begin(), all.end(), by_serial);
+
+    // Write the decrypted statement; every row ends with a newline.
+    std::ofstream out("txchain.txt");
+    for (size_t i = 0; i < all.size(); i++) {
+        out << all[i].serial << " " << all[i].sender << " "
+            << all[i].receiver << " " << all[i].amount << "\n";
+    }
+    out.close();
+
+    const char *ok = "OK";
+    send(conn, ok, strlen(ok), 0);
+}
+
+// Accept one monitor connection (TXLIST), build txchain.txt, and confirm.
 static void handle_monitor(int listen_fd) {
     struct sockaddr_in mon;
     socklen_t mon_len = sizeof(mon);
@@ -301,8 +329,8 @@ static void handle_monitor(int listen_fd) {
         printf("The main server received a sorted list request from the monitor "
                "using TCP over port %d.\n", TCP_PORT_MONITOR);
         fflush(stdout);
+        do_txlist(conn);
     }
-    // Phase 3: gather all transactions, sort, write txchain.txt, reply here.
     close(conn);
 }
 

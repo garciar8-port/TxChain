@@ -1,5 +1,4 @@
 // client.cpp — Client
-// TxChain, EE 450 final project.
 // Connects to the Main Server over TCP.
 //   ./client <username>                     -> CHECK WALLET
 //   ./client <username1> <username2> <amt>  -> TXCOINS

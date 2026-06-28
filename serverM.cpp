@@ -1,5 +1,4 @@
 // serverM.cpp — Main Server (Server-M)
-// TxChain, EE 450 final project.
 // Talks to the client and monitor over TCP, and to backend servers A/B/C over UDP.
 //
 // Phase 2: on a client request, Server-M queries the three backends over UDP,

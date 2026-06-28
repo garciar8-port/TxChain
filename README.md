@@ -1,18 +1,14 @@
-# TxChain — EE 450 Final Project
-
-**Name (as in class list):** Rodrigo Garcia
-**USC Student ID:** 2105066875
-**Extra credit (Phase 4):** Not attempted.
+# TxChain 
 
 A simplified blockchain transaction service. A Main Server (`serverM`) coordinates
 three backend servers (`serverA/B/C`), each owning a block file, plus a `client`
 and a `monitor`. The Main Server talks to the client and monitor over **TCP** and
 to the backend servers over **UDP**.
 
-> Status: Phases 1, 2, and 3 implemented (boot/TCP setup; CHECK WALLET & TXCOINS;
-> TXLIST). Phase 4 (extra credit) not attempted.
+> Status: Implemented (boot/TCP setup; CHECK WALLET & TXCOINS;
+> TXLIST). 
 
-## Ports (USC ID last 3 digits = 875)
+## Ports
 
 | Process | Port |
 | --- | --- |

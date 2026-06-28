@@ -116,12 +116,12 @@ regenerated (overwritten) on each request.
   so M only prints the "received a sorted list request from the monitor" line;
   the backends still print their own received/finished lines.
 - **Amounts are treated as integers.**
-- **Message-format judgment calls** (the project doc's tables and example output
-  disagree in places; the example was followed where one exists):
-  - Boot line uses `The ServerA ...` (no space), per the example output; Table 4's
-    text says `The Server A ...` (with a space).
-  - Usernames are quoted in CHECK-WALLET-related messages (per the example) and
-    unquoted in TXCOINS-related messages (per Table 8, which shows no example).
+- **Usernames are quoted in all on-screen messages** (e.g. `"Martin"`), matching
+  the example output and the expected output formatting for both CHECK WALLET and
+  TXCOINS, on the client and the main server.
+- **Message-format judgment call:** the boot line uses `The ServerA ...` (no
+  space), per the example output; Table 4's text says `The Server A ...` (with a
+  space). The example was followed.
 - **Failure conditions:** the servers assume the start order and the localhost-only
   setup described above. UDP is used over loopback without retransmission, which is
   reliable for this single-host configuration.

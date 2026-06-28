@@ -24,5 +24,8 @@ txchain.txt
 .DS_Store
 *.dSYM/
 
+# Large VM disk image (do NOT commit)
+*.qcow2
+
 # Session scratchpad (local only)
 .scratchpad.md

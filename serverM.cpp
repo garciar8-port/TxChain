@@ -1,5 +1,4 @@
 // serverM.cpp — Main Server (Server-M)
-// TxChain, EE 450 final project.
 // Talks to the client and monitor over TCP, and to backend servers A/B/C over UDP.
 //
 // Phase 2: on a client request, Server-M queries the three backends over UDP,
@@ -278,7 +277,7 @@ static void handle_client(int listen_fd) {
         do_check_wallet(conn, user);
     } else if (op == "TXCOINS") {
         string sender, receiver, amt; iss >> sender >> receiver >> amt;
-        printf("The main server received from %s to transfer %s coins to %s "
+        printf("The main server received from \"%s\" to transfer %s coins to \"%s\" "
                "using TCP over port %d.\n", sender.c_str(), amt.c_str(),
                receiver.c_str(), TCP_PORT_CLIENT);
         fflush(stdout);

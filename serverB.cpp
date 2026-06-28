@@ -1,5 +1,4 @@
 // serverB.cpp — Backend Server B
-// TxChain, EE 450 final project.
 // Owns block2.txt. Communicates with the Main Server over UDP only.
 //
 // The backend stores transactions entirely in ENCRYPTED (ciphertext) form and

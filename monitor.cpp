@@ -1,5 +1,4 @@
 // monitor.cpp — Monitor
-// TxChain, EE 450 final project.
 // Connects to the Main Server over TCP.
 //   ./monitor TXLIST  -> request a sorted, decrypted transaction list (txchain.txt)
 //

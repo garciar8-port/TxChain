@@ -1,5 +1,4 @@
 // client.cpp — Client
-// TxChain, EE 450 final project.
 // Connects to the Main Server over TCP.
 //   ./client <username>                     -> CHECK WALLET
 //   ./client <username1> <username2> <amt>  -> TXCOINS
@@ -80,7 +79,7 @@ int main(int argc, char *argv[]) {
         // ---- TXCOINS ---- argv[1]=sender, argv[2]=receiver, argv[3]=amount
         snprintf(msg, sizeof(msg), "TXCOINS %s %s %s", argv[1], argv[2], argv[3]);
         if (send(sockfd, msg, strlen(msg), 0) < 0) { perror("client: send"); exit(1); }
-        printf("%s has requested to transfer %s txcoins to %s\n",
+        printf("\"%s\" has requested to transfer %s txcoins to \"%s\"\n",
                argv[1], argv[3], argv[2]);
         fflush(stdout);
 
@@ -90,22 +89,22 @@ int main(int argc, char *argv[]) {
 
         if (strncmp(reply, "SUCCESS", 7) == 0) {
             long bal = strtol(reply + 7, NULL, 10);
-            printf("%s successfully transferred %s txcoins to %s. "
-                   "The current balance of %s is : %ld txcoins.\n",
+            printf("\"%s\" successfully transferred %s txcoins to \"%s\". "
+                   "The current balance of \"%s\" is : %ld txcoins.\n",
                    argv[1], argv[3], argv[2], argv[1], bal);
         } else if (strncmp(reply, "INSUFFICIENT", 12) == 0) {
             long bal = strtol(reply + 12, NULL, 10);
-            printf("%s was unable to transfer %s txcoins to %s because of "
-                   "insufficient balance. The current balance of %s is : %ld txcoins.\n",
+            printf("\"%s\" was unable to transfer %s txcoins to \"%s\" because of "
+                   "insufficient balance. The current balance of \"%s\" is : %ld txcoins.\n",
                    argv[1], argv[3], argv[2], argv[1], bal);
         } else if (strcmp(reply, "MISSINGSENDER") == 0) {
-            printf("Unable to proceed with the transaction as %s is not part "
+            printf("Unable to proceed with the transaction as \"%s\" is not part "
                    "of the network.\n", argv[1]);
         } else if (strcmp(reply, "MISSINGRECEIVER") == 0) {
-            printf("Unable to proceed with the transaction as %s is not part "
+            printf("Unable to proceed with the transaction as \"%s\" is not part "
                    "of the network.\n", argv[2]);
         } else if (strcmp(reply, "MISSINGBOTH") == 0) {
-            printf("Unable to proceed with the transaction as %s and %s are not "
+            printf("Unable to proceed with the transaction as \"%s\" and \"%s\" are not "
                    "part of the network.\n", argv[1], argv[2]);
         }
         fflush(stdout);

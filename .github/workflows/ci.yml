@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: ${{ matrix.os }} · ${{ matrix.config }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14]
+        config: [default, no_crypto]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DTXCHAIN_BUILD_TESTS=ON
+          -DTXCHAIN_NO_CRYPTO=${{ matrix.config == 'no_crypto' && 'ON' || 'OFF' }}
+
+      - name: Build (-Werror)
+        run: cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  # Placeholder: the dedicated ThreadSanitizer / ASan+UBSan integration job is
+  # Pillar 5's concern (CRE-219, m5-sanitizer-builds-ci). Intentionally NOT wired
+  # here — the TXCHAIN_SANITIZE option exists but is exercised by that ticket.
+  # sanitizers:
+  #   runs-on: ubuntu-22.04
+  #   steps: ...

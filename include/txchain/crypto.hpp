@@ -1,10 +1,13 @@
 #pragma once
-// crypto module — public interface (txchain_core).
+// crypto module — public umbrella header (txchain_core).
 //
-// Phase-0 scaffold (CRE-188): this header only exposes a scaffold marker that
-// proves the module compiles and links into the txchain_core static library.
-// The real crypto API lands in a later M0/pillar ticket. This module has no
-// dependency on any sibling module at this stage (acyclic, bottom-up).
+// Aggregates the cryptographic trust root's public API. SHA-256 + the
+// fixed-width byte types are wired (CRE-189); Ed25519, address derivation, the
+// hex codec, and PoW helpers arrive in CRE-190 / CRE-191. This module depends on
+// no sibling module (acyclic, bottom-up).
+
+#include "txchain/crypto/fixedbytes.hpp"
+#include "txchain/crypto/sha256.hpp"
 
 namespace txchain::crypto {
 

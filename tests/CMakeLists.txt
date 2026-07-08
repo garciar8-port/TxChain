@@ -25,3 +25,10 @@ target_link_libraries(txchain_tests
 
 include(GoogleTest)
 gtest_discover_tests(txchain_tests)
+
+# Crypto-labeled tests (SHA-256 KAT now; address/hex/golden vectors later).
+add_executable(txchain_crypto_tests
+  golden/sha256_kat_test.cpp)
+target_link_libraries(txchain_crypto_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
+gtest_discover_tests(txchain_crypto_tests PROPERTIES LABELS crypto)

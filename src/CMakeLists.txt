@@ -13,6 +13,8 @@ add_library(txchain_core STATIC
   crypto/address.cpp
   crypto/hashutil.cpp
   serialize/serialize.cpp
+  serialize/canonical.cpp
+  serialize/json.cpp
   chain/chain.cpp
   state/state.cpp
   mempool/mempool.cpp
@@ -24,6 +26,12 @@ add_library(txchain_core STATIC
   config/config.cpp)
 
 target_include_directories(txchain_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
+# picojson (vendored, header-only) for chain.jsonl parsing — SYSTEM so its
+# header is exempt from the -Werror policy; INT64 mode so u64 fields decode
+# without double-precision loss.
+target_include_directories(txchain_core SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/third_party/json)
+target_compile_definitions(txchain_core PRIVATE PICOJSON_USE_INT64)
 
 # Warnings are a private, first-party policy; the sanitizer interface is public
 # so linkers of txchain_core (apps, tests) inherit consistent instrumentation.

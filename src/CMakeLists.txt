@@ -10,6 +10,8 @@
 add_library(txchain_core STATIC
   crypto/crypto.cpp
   crypto/sha256.cpp
+  crypto/address.cpp
+  crypto/hashutil.cpp
   serialize/serialize.cpp
   chain/chain.cpp
   state/state.cpp

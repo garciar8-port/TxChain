@@ -30,7 +30,10 @@ gtest_discover_tests(txchain_tests)
 add_executable(txchain_crypto_tests
   golden/sha256_kat_test.cpp
   golden/ed25519_rfc8032_test.cpp
-  golden/ed25519_crossbackend_test.cpp)
+  golden/ed25519_crossbackend_test.cpp
+  golden/address_test.cpp
+  unit/hex_roundtrip_test.cpp
+  unit/pow_target_test.cpp)
 # tests/golden is on the include path for the generated ed25519_vectors.hpp.
 target_include_directories(txchain_crypto_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/golden)
 # vendored_ed25519 is linked directly so the cross-backend test can call ref10

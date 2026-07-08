@@ -23,6 +23,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # libsodium is optional: when present the default leg builds the sodium
+      # backend and the cross-backend equivalence test runs; the no_crypto leg
+      # always uses the vendored ref10. Installing it here exercises both.
+      - name: Install libsodium
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq libsodium-dev pkg-config
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            brew install libsodium pkg-config || true
+            echo "PKG_CONFIG_PATH=$(brew --prefix libsodium)/lib/pkgconfig:${PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
+          fi
+
       - name: Configure
         run: >
           cmake -S . -B build

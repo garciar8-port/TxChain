@@ -28,3 +28,14 @@ target_include_directories(txchain_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(txchain_core
   PRIVATE txchain_warnings vendored_sha256
   PUBLIC  txchain_sanitize)
+
+# ---- Ed25519 backend (compile-time switch resolved in the root CMakeLists) ----
+# Exactly ONE backend .cpp is compiled into txchain_core; both define the same
+# facade symbols. The vendored ref10 header/lib are never on the public API.
+if(TXCHAIN_CRYPTO_BACKEND STREQUAL "sodium")
+  target_sources(txchain_core PRIVATE crypto/ed25519_sodium.cpp)
+  target_link_libraries(txchain_core PRIVATE PkgConfig::SODIUM)
+else()
+  target_sources(txchain_core PRIVATE crypto/ed25519_ref10.cpp)
+  target_link_libraries(txchain_core PRIVATE vendored_ed25519)
+endif()

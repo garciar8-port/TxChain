@@ -47,7 +47,39 @@ if(TXCHAIN_SANITIZE)
   target_link_options(txchain_sanitize INTERFACE -fsanitize=${TXCHAIN_SANITIZE})
 endif()
 
-add_subdirectory(third_party/sha256)  # vendored SHA-256 (built without -Werror)
+# ---- Ed25519 backend selection (compile-time, never runtime) ----
+# Detect libsodium (optional). Default: use it when present, else the vendored
+# ref10. TXCHAIN_NO_CRYPTO forces ref10; TXCHAIN_CRYPTO can override explicitly.
+find_package(PkgConfig QUIET)
+set(TXCHAIN_HAVE_SODIUM OFF)
+if(PkgConfig_FOUND)
+  pkg_check_modules(SODIUM QUIET IMPORTED_TARGET libsodium)
+  if(SODIUM_FOUND)
+    set(TXCHAIN_HAVE_SODIUM ON)
+  endif()
+endif()
+
+set(TXCHAIN_CRYPTO "auto" CACHE STRING "Ed25519 backend: auto | sodium | ref10")
+set_property(CACHE TXCHAIN_CRYPTO PROPERTY STRINGS auto sodium ref10)
+
+set(_txchain_crypto "${TXCHAIN_CRYPTO}")
+if(TXCHAIN_NO_CRYPTO)
+  set(_txchain_crypto ref10)      # smoke build uses the vendored backend
+elseif(_txchain_crypto STREQUAL "auto")
+  if(TXCHAIN_HAVE_SODIUM)
+    set(_txchain_crypto sodium)
+  else()
+    set(_txchain_crypto ref10)
+  endif()
+endif()
+if(_txchain_crypto STREQUAL "sodium" AND NOT TXCHAIN_HAVE_SODIUM)
+  message(FATAL_ERROR "TXCHAIN_CRYPTO=sodium requested but libsodium was not found")
+endif()
+set(TXCHAIN_CRYPTO_BACKEND "${_txchain_crypto}" CACHE INTERNAL "resolved Ed25519 backend")
+message(STATUS "Ed25519 backend: ${TXCHAIN_CRYPTO_BACKEND} (libsodium detected: ${TXCHAIN_HAVE_SODIUM})")
+
+add_subdirectory(third_party/sha256)         # vendored SHA-256 (no -Werror)
+add_subdirectory(third_party/ed25519_ref10)  # vendored ref10 Ed25519 (no -Werror)
 
 add_subdirectory(src)     # txchain_core static library
 add_subdirectory(apps)    # txnode + txchain executables (thin shims)

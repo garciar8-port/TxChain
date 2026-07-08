@@ -47,3 +47,13 @@ else()
   target_compile_definitions(txchain_crypto_tests PRIVATE TXCHAIN_HAVE_SODIUM=0)
 endif()
 gtest_discover_tests(txchain_crypto_tests PROPERTIES LABELS crypto)
+
+# Serialize-labeled tests (canonical serializer, golden vectors, round-trip).
+add_executable(txchain_serialize_tests
+  golden/golden_txid_test.cpp
+  golden/golden_blockhash_test.cpp
+  unit/serialize_roundtrip_test.cpp)
+target_include_directories(txchain_serialize_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/golden)
+target_link_libraries(txchain_serialize_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
+gtest_discover_tests(txchain_serialize_tests PROPERTIES LABELS serialize)

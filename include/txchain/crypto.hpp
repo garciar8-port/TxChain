@@ -6,8 +6,10 @@
 // hex codec, and PoW helpers arrive in CRE-190 / CRE-191. This module depends on
 // no sibling module (acyclic, bottom-up).
 
+#include "txchain/crypto/address.hpp"
 #include "txchain/crypto/ed25519.hpp"
 #include "txchain/crypto/fixedbytes.hpp"
+#include "txchain/crypto/hashutil.hpp"
 #include "txchain/crypto/sha256.hpp"
 
 namespace txchain::crypto {

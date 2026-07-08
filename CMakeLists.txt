@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(txchain
   VERSION 2.0.0
   DESCRIPTION "TxChain v2 — a hash-linked, signed, PoW-secured account ledger"
-  LANGUAGES CXX)
+  LANGUAGES CXX C)
 
 # ---- Language standard: C++17, no compiler extensions ----
 set(CMAKE_CXX_STANDARD 17)
@@ -46,6 +46,8 @@ if(TXCHAIN_SANITIZE)
     -fsanitize=${TXCHAIN_SANITIZE} -fno-omit-frame-pointer -g)
   target_link_options(txchain_sanitize INTERFACE -fsanitize=${TXCHAIN_SANITIZE})
 endif()
+
+add_subdirectory(third_party/sha256)  # vendored SHA-256 (built without -Werror)
 
 add_subdirectory(src)     # txchain_core static library
 add_subdirectory(apps)    # txnode + txchain executables (thin shims)

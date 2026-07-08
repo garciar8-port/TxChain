@@ -9,6 +9,7 @@
 
 add_library(txchain_core STATIC
   crypto/crypto.cpp
+  crypto/sha256.cpp
   serialize/serialize.cpp
   chain/chain.cpp
   state/state.cpp
@@ -25,5 +26,5 @@ target_include_directories(txchain_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 # Warnings are a private, first-party policy; the sanitizer interface is public
 # so linkers of txchain_core (apps, tests) inherit consistent instrumentation.
 target_link_libraries(txchain_core
-  PRIVATE txchain_warnings
+  PRIVATE txchain_warnings vendored_sha256
   PUBLIC  txchain_sanitize)

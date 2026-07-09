@@ -16,6 +16,7 @@ add_library(txchain_core STATIC
   serialize/canonical.cpp
   serialize/json.cpp
   chain/chain.cpp
+  chain/genesis.cpp
   state/state.cpp
   mempool/mempool.cpp
   pow/pow.cpp

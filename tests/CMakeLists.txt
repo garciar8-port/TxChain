@@ -58,6 +58,14 @@ target_link_libraries(txchain_serialize_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_serialize_tests PROPERTIES LABELS serialize)
 
+# Chain/state tests (M1 core types + deterministic genesis).
+add_executable(txchain_chain_tests
+  golden/genesis_test.cpp
+  unit/chain_state_test.cpp)
+target_link_libraries(txchain_chain_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
+gtest_discover_tests(txchain_chain_tests PROPERTIES LABELS chain)
+
 # Frame-codec test (socket round-trip; uses a writer thread to avoid deadlock).
 find_package(Threads REQUIRED)
 add_executable(txchain_frame_tests

@@ -1,6 +1,7 @@
 #include "txchain/chain/gate.hpp"
 
 #include <array>
+#include <string>
 
 #include "txchain/chain/params.hpp"
 #include "txchain/crypto/address.hpp"
@@ -15,6 +16,19 @@ namespace {
 constexpr Address kNullAddr{};
 constexpr PubKey kNullPub{};
 constexpr Sig kNullSig{};
+
+// Human-readable detail for a per-txn gate failure, naming the offending txn —
+// the monitor-verify contract string (Chain/State §7.3).
+std::string txn_detail(Reason r, std::size_t ti) {
+  const std::string suffix = " for txn " + std::to_string(ti);
+  switch (r) {
+    case Reason::BAD_ADDR: return "from != SHA-256(pubkey)[:20]" + suffix;
+    case Reason::BAD_SIG: return "ed25519 verify failed" + suffix;
+    case Reason::STALE_NONCE: return "nonce not next-expected" + suffix;
+    case Reason::INSUFFICIENT_FUNDS: return "amount exceeds balance" + suffix;
+    default: return "txn" + suffix;
+  }
+}
 }  // namespace
 
 Reason applyTxn(std::map<Address, AccountState>& work, const Txn& t,
@@ -58,6 +72,36 @@ Reason applyTxn(std::map<Address, AccountState>& work, const Txn& t,
   work[t.from] = from_after;
   work[t.to] = to_after;
   return Reason::OK;
+}
+
+BlockApplyResult applyBlockTxns(std::map<Address, AccountState>& work, const Block& b,
+                                std::uint64_t reward) {
+  const std::uint64_t idx = b.header.index;
+  int coinbase_count = 0;
+  for (std::size_t ti = 0; ti < b.txns.size(); ++ti) {
+    const Txn& t = b.txns[ti];
+
+    // ---- Coinbase special-case (Mempool/PoW §4.4): a pure +reward mint ----
+    if (t.from == kNullAddr) {
+      if (++coinbase_count > 1) return {Reason::BAD_TXNS_HASH, "duplicate coinbase", ti};
+      if (ti != 0) return {Reason::BAD_TXNS_HASH, "coinbase not at tx0", ti};
+      // nonce carries the block height (BIP-34-style) ⇒ unique txid per block.
+      if (!(t.pubkey == kNullPub) || !(t.sig == kNullSig) || t.nonce != idx)
+        return {Reason::BAD_TXNS_HASH, "malformed coinbase", ti};
+      if (t.amount != COINBASE_REWARD) return {Reason::BAD_SUPPLY, "bad coinbase reward", ti};
+      work[t.to].balance += t.amount;  // credit only — no debit, no nonce bump
+      continue;                        // skip the addr/sig/nonce gate for the coinbase
+    }
+
+    // ---- Normal txn: the shared §2.3 gate ----
+    const Reason r = applyTxn(work, t, idx, ti);
+    if (r != Reason::OK) return {r, txn_detail(r, ti), ti};
+  }
+
+  // Exactly one coinbase per non-genesis block once issuance is on (M3).
+  if (reward > 0 && coinbase_count == 0)
+    return {Reason::BAD_SUPPLY, "missing coinbase", b.txns.size()};
+  return {Reason::OK, "", 0};
 }
 
 }  // namespace txchain::chain

@@ -21,7 +21,7 @@ std::uint64_t wall_clock_now_s() { return static_cast<std::uint64_t>(std::time(n
 
 const char* module_name() noexcept { return "chain"; }
 
-Chain::Chain() {
+Chain::Chain(unsigned difficulty, std::uint64_t reward) : difficulty_(difficulty), reward_(reward) {
   blocks_.push_back(genesisBlock());
   applyGenesis(state_);
   cumWork_ = 0;  // genesis is not mined
@@ -36,6 +36,8 @@ Hash256 Chain::tipHash() const { return blocks_.back().header.hash(); }
 Work Chain::cumWork() const { return cumWork_; }
 
 unsigned Chain::difficulty() const { return difficulty_; }
+
+std::uint64_t Chain::reward() const { return reward_; }
 
 AccountState Chain::account(const Address& a) const {
   const auto it = state_.find(a);
@@ -70,24 +72,20 @@ Reason Chain::connectBlock(const Block& b, std::uint64_t now_s) {
   // V6 — block-size cap.
   if (b.txns.size() > MAX_TXNS_PER_BLOCK) return Reason::BAD_TXNS_HASH;
 
-  // V7 — per-txn gate + commit against a scratch copy, using the SAME shared
-  // predicate (applyTxn) as replayFromGenesis, in block-inclusion order. The
-  // address→sig→nonce→funds checks now run for real (M2). All mutation happens
-  // on `work`, never state_, until commit; any txn failure discards `work`.
+  // V7 — per-txn gate + coinbase + commit against a scratch copy, using the SAME
+  // shared predicate (applyBlockTxns) as replayFromGenesis in block-inclusion
+  // order, so the two paths can never disagree. All mutation happens on `work`,
+  // never state_, until commit; any failure discards `work`.
   std::map<Address, AccountState> work = state_;
   std::vector<std::pair<Address, AccountState>> inverse;
-  for (std::size_t ti = 0; ti < b.txns.size(); ++ti) {
-    const Txn& t = b.txns[ti];
-    // Record the pre-images for the undo log BEFORE the gate mutates `work`.
-    const AccountState from_before = work.count(t.from) ? work[t.from] : AccountState{};
-    const AccountState to_before = work.count(t.to) ? work[t.to] : AccountState{};
-
-    const Reason r = applyTxn(work, t, b.header.index, ti);
-    if (r != Reason::OK) return r;  // discards work; state_/blocks_/cumWork_ untouched
-
-    inverse.push_back({t.from, from_before});
-    inverse.push_back({t.to, to_before});
+  // Pre-image snapshot for the undo log (recorded before apply; unused until the
+  // Pillar-4 reorg fast path).
+  for (const auto& t : b.txns) {
+    inverse.push_back({t.from, work.count(t.from) ? work[t.from] : AccountState{}});
+    inverse.push_back({t.to, work.count(t.to) ? work[t.to] : AccountState{}});
   }
+  const BlockApplyResult ar = applyBlockTxns(work, b, reward_);
+  if (ar.reason != Reason::OK) return ar.reason;  // discards work; state_/blocks_/cumWork_ untouched
 
   // All checks passed — atomic commit. No earlier step mutated state_/blocks_/
   // cumWork_, so any failure above left the chain byte-identical.
@@ -100,8 +98,9 @@ Reason Chain::connectBlock(const Block& b, std::uint64_t now_s) {
 
 Reason Chain::validateChain() const {
   // Ground truth: replay from genesis, ignoring the cached state_ entirely. Any
-  // disagreement with state_ would indicate a commit-path bug.
-  return replayFromGenesis(blocks_).reason;
+  // disagreement with state_ would indicate a commit-path bug. Uses this chain's
+  // own D/reward so the incremental and ground-truth paths validate identically.
+  return replayFromGenesis(blocks_, wall_clock_now_s(), difficulty_, reward_).reason;
 }
 
 }  // namespace txchain::chain

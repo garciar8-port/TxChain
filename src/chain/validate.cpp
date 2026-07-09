@@ -1,9 +1,12 @@
 #include "txchain/chain/validate.hpp"
 
+#include <cstddef>
 #include <ctime>
 #include <map>
+#include <string>
 #include <utility>
 
+#include "txchain/chain/gate.hpp"       // applyTxn — the shared per-txn verify gate
 #include "txchain/chain/genesis.hpp"
 #include "txchain/chain/params.hpp"
 #include "txchain/crypto/hashutil.hpp"  // meets_difficulty
@@ -31,6 +34,21 @@ std::uint64_t wall_clock_now_s() { return static_cast<std::uint64_t>(std::time(n
 
 VerifyResult fail(std::uint64_t idx, Reason r, std::string detail) {
   return VerifyResult{false, idx, r, std::move(detail)};
+}
+
+// Human-readable detail for a per-txn gate failure, naming the offending txn —
+// e.g. "ed25519 verify failed for txn 2" (Chain/State §7.3 monitor-verify contract).
+std::string gate_detail(Reason r, std::size_t ti) {
+  const std::string suffix = " for txn " + std::to_string(ti);
+  switch (r) {
+    case Reason::BAD_ADDR: return "from != SHA-256(pubkey)[:20]" + suffix;
+    case Reason::BAD_SIG: return "ed25519 verify failed" + suffix;
+    case Reason::STALE_NONCE: return "nonce not next-expected" + suffix;
+    case Reason::INSUFFICIENT_FUNDS: return "amount exceeds balance" + suffix;
+    case Reason::BAD_SUPPLY: return "bad coinbase reward" + suffix;
+    case Reason::BAD_TXNS_HASH: return "malformed coinbase" + suffix;
+    default: return "txn" + suffix;
+  }
 }
 
 }  // namespace
@@ -75,27 +93,14 @@ VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t n
     if (b.txns.size() > MAX_TXNS_PER_BLOCK)
       return fail(idx, Reason::BAD_TXNS_HASH, "too many txns");
 
-    // Per-txn gate + apply. At M1 the address/sig/nonce checks are inert (blocks
-    // are empty); the funds check and balance apply use the SAME copy semantics
-    // as connectBlock, so the incremental and ground-truth paths agree. The
-    // coinbase / BAD_SUPPLY reward path activates in M3.
-    for (const auto& t : b.txns) {
-      // (M2) BAD_ADDR: t.from != crypto::address(t.pubkey)
-      // (M2) BAD_SIG:  !crypto::verify(t.pubkey, t.sig, signed_payload(t))
-      // (M2) STALE_NONCE: t.nonce != state[t.from].nonce
-      const AccountState from_before = state.count(t.from) ? state[t.from] : AccountState{};
-      if (t.amount > from_before.balance)
-        return fail(idx, Reason::INSUFFICIENT_FUNDS, "insufficient funds");
-      const AccountState to_before = state.count(t.to) ? state[t.to] : AccountState{};
-
-      AccountState from_after = from_before;
-      from_after.balance -= t.amount;
-      from_after.nonce += 1;
-      AccountState to_after = to_before;
-      to_after.balance += t.amount;
-
-      state[t.from] = from_after;
-      state[t.to] = to_after;
+    // Per-txn gate + apply via the SAME shared predicate (applyTxn) that
+    // connectBlock uses, in block-inclusion order — so the ground-truth replay
+    // and the incremental commit can never disagree on a reason (Chain/State
+    // §4.5). address→sig→nonce→funds run for real (M2); the coinbase-exemption
+    // branch is present but dormant until M3.
+    for (std::size_t ti = 0; ti < b.txns.size(); ++ti) {
+      const Reason r = applyTxn(state, b.txns[ti], b.header.index, ti);
+      if (r != Reason::OK) return fail(idx, r, gate_detail(r, ti));
     }
 
     prevHash = b.header.hash();

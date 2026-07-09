@@ -7,6 +7,7 @@
 // persistence (CRE-198) build on these.
 
 #include "txchain/chain/chain.hpp"
+#include "txchain/chain/gate.hpp"
 #include "txchain/chain/genesis.hpp"
 #include "txchain/chain/params.hpp"
 #include "txchain/chain/reason.hpp"

@@ -13,9 +13,14 @@
 #include "txchain/chain/reason.hpp"
 #include "txchain/chain/types.hpp"
 #include "txchain/chain/validate.hpp"
+#include "txchain/crypto/address.hpp"
+#include "txchain/crypto/ed25519.hpp"
+#include "txchain/crypto/sha256.hpp"
+#include "txchain/serialize/canonical.hpp"
 
 namespace {
 
+using txchain::chain::Address;
 using txchain::chain::Block;
 using txchain::chain::Chain;
 using txchain::chain::genesisBlock;
@@ -30,6 +35,27 @@ using txchain::chain::replayFromGenesis;
 using txchain::chain::Txn;
 
 constexpr std::uint64_t NOW = 2000000000;
+
+// A validly-signed txn from a genesis identity (seed = SHA-256("txchain-genesis-"||name)).
+txchain::crypto::Seed32 genesis_seed(const std::string& name) {
+  const std::string s = "txchain-genesis-" + name;
+  return txchain::crypto::sha256(txchain::crypto::ByteView(
+      reinterpret_cast<const txchain::crypto::Byte*>(s.data()), s.size()));
+}
+
+Txn signed_txn(const txchain::crypto::Seed32& seed, const Address& to, std::uint64_t amount,
+                std::uint64_t nonce) {
+  Txn t;
+  t.ver = 1;
+  t.pubkey = txchain::crypto::derive_pubkey(seed);
+  t.from = txchain::crypto::address(t.pubkey);
+  t.to = to;
+  t.amount = amount;
+  t.nonce = nonce;
+  const auto p = txchain::serialize::signed_payload(t);
+  t.sig = txchain::crypto::sign(seed, txchain::crypto::ByteView(p.data(), p.size()));
+  return t;
+}
 
 // genesis + (n-1) correctly-linked empty cadence blocks.
 std::vector<Block> buildChain(std::size_t n) {
@@ -92,11 +118,10 @@ TEST(Replay, SupplyInvariantCatchesMint) {
   b1.header.index = 1;
   b1.header.timestamp = GENESIS_TIMESTAMP + 1;
   b1.header.prevHash = chain[0].header.hash();
-  Txn t;
-  t.ver = 1;
-  t.from = GENESIS_ALLOC[0].addr;
-  t.to = GENESIS_ALLOC[0].addr;  // self-transfer
-  t.amount = 100;
+  // A validly-signed self-transfer (racheal→racheal): it passes the address/sig/
+  // nonce/funds gate, but the copy-apply's last-write-wins mints — the supply
+  // invariant (§6) is the backstop that catches it.
+  const Txn t = signed_txn(genesis_seed("racheal"), GENESIS_ALLOC[0].addr, 100, 0);
   b1.txns.push_back(t);
   b1.header.txnsHash = b1.computeTxnsHash();
   b1.header.nonce = 0;

@@ -19,6 +19,7 @@ add_library(txchain_core STATIC
   chain/genesis.cpp
   chain/validate.cpp
   chain/store.cpp
+  node/node.cpp
   state/state.cpp
   mempool/mempool.cpp
   pow/pow.cpp

@@ -69,6 +69,14 @@ target_link_libraries(txchain_chain_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_chain_tests PROPERTIES LABELS chain)
 
+# Node lifecycle tests (boot self-validation + M1 cadence sealer + config
+# precedence). The sealer is driven with explicit timestamps — no real sleeping.
+add_executable(txchain_node_tests
+  unit/node_test.cpp)
+target_link_libraries(txchain_node_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
+gtest_discover_tests(txchain_node_tests PROPERTIES LABELS node)
+
 # Frame-codec test (socket round-trip; uses a writer thread to avoid deadlock).
 find_package(Threads REQUIRED)
 add_executable(txchain_frame_tests

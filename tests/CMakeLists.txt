@@ -61,7 +61,8 @@ gtest_discover_tests(txchain_serialize_tests PROPERTIES LABELS serialize)
 # Chain/state tests (M1 core types + deterministic genesis).
 add_executable(txchain_chain_tests
   golden/genesis_test.cpp
-  unit/chain_state_test.cpp)
+  unit/chain_state_test.cpp
+  unit/connect_block_test.cpp)
 target_link_libraries(txchain_chain_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_chain_tests PROPERTIES LABELS chain)

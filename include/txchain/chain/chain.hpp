@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include "txchain/chain/params.hpp"
+#include "txchain/chain/reason.hpp"
 #include "txchain/chain/types.hpp"
 
 namespace txchain::chain {
@@ -30,17 +32,23 @@ public:
   AccountState account(const Address& a) const;   // {0,0} if absent
   const Block& blockAt(std::uint64_t idx) const;  // throws std::out_of_range if oob
 
-  // ---- writes ----
-  // Declared stubs; the real validate-against-tip + commit lands in CRE-196 and
-  // the from-genesis replay in CRE-197 (both return the Reason enum then). They
-  // are intentionally not implemented here (M1 scope is types + genesis).
-  bool connectBlock(const Block& b);  // TODO(CRE-196): structural validate + commit
-  bool validateChain() const;         // TODO(CRE-197): from-genesis replay
+  // ---- writes (exclusive lock in Pillar 5) ----
+  // The single write path: validate-against-tip (V1–V7) then atomic commit.
+  // Returns Reason::OK on success, else the first failing reason (state
+  // unchanged). now_s is injectable for deterministic tests; the no-arg form
+  // uses the wall clock (V3 skew check).
+  Reason connectBlock(const Block& b);
+  Reason connectBlock(const Block& b, std::uint64_t now_s);
+
+  // From-genesis replay, the ground-truth validator. TODO(CRE-197): real impl;
+  // currently a stub returning OK.
+  Reason validateChain() const;
 
 private:
   std::vector<Block> blocks_;
   std::map<Address, AccountState> state_;
   Work cumWork_ = 0;
+  unsigned difficulty_ = 0;  // M1 runs at D=0; Pillar 3 (M3) flips this to 16
   std::vector<CommitDelta> undoLog_;
 };
 

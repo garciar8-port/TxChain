@@ -1,10 +1,11 @@
 #pragma once
-// mempool module — public interface (txchain_core).
+// mempool module — public umbrella header (txchain_core).
 //
-// Phase-0 scaffold (CRE-188): this header only exposes a scaffold marker that
-// proves the module compiles and links into the txchain_core static library.
-// The real mempool API lands in a later M0/pillar ticket. This module has no
-// dependency on any sibling module at this stage (acyclic, bottom-up).
+// The bounded, deduplicated pending-transaction set and its admission gate. The
+// real API lives in mempool/mempool.hpp (CRE-202); the module depends on chain
+// (the shared verify gate + Reason enum) and serialize (txid), bottom-up.
+
+#include "txchain/mempool/mempool.hpp"
 
 namespace txchain::mempool {
 

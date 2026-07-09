@@ -77,6 +77,14 @@ target_link_libraries(txchain_node_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_node_tests PROPERTIES LABELS node)
 
+# Wallet key-material tests (wallet.key format, keygen, load/validate). Golden
+# derivation is backend-independent (RFC 8032) — same on sodium and ref10.
+add_executable(txchain_wallet_tests
+  unit/wallet_test.cpp)
+target_link_libraries(txchain_wallet_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
+gtest_discover_tests(txchain_wallet_tests PROPERTIES LABELS wallet)
+
 # Frame-codec test (socket round-trip; uses a writer thread to avoid deadlock).
 find_package(Threads REQUIRED)
 add_executable(txchain_frame_tests

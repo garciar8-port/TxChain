@@ -20,6 +20,7 @@
 #include "txchain/chain/validate.hpp"
 #include "txchain/crypto/hashutil.hpp"
 #include "txchain/node/node.hpp"
+#include "txchain/wallet/wallet.hpp"
 
 namespace {
 
@@ -62,6 +63,19 @@ int main(int argc, char** argv) {
         br.status.detail.c_str());
     return 1;  // refuse to start — no listener was bound
   }
+
+  // Load (or create) the node's operating key. A malformed / bad-length wallet.key
+  // refuses to start, same as a bad chain (Cryptography §10); a world-readable key
+  // warns but loads (learning-artifact affordance).
+  const wallet::LoadResult wr = wallet::load_or_create_wallet(cfg.datadir);
+  if (!wr.ok) {
+    std::printf("{\"event\":\"wallet_error\",\"detail\":\"%s\"}\n", wr.error.c_str());
+    return 1;
+  }
+  if (wr.world_readable)
+    std::printf("{\"event\":\"wallet_perms_warning\",\"detail\":\"wallet.key is group/other-accessible\"}\n");
+  std::printf("{\"event\":\"wallet_ready\",\"address\":\"%s\"}\n",
+              crypto::to_hex(wr.wallet.address).c_str());
 
   std::printf("{\"event\":\"node_up\",\"height\":%llu,\"tip\":\"%s\"}\n",
               static_cast<unsigned long long>(nd.height()),

@@ -28,6 +28,7 @@ add_library(txchain_core STATIC
   p2p/p2p.cpp
   p2p/frame.cpp
   rpc/rpc.cpp
+  rpc/http_server.cpp
   metrics/metrics.cpp
   log/log.cpp
   config/config.cpp)

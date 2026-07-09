@@ -101,6 +101,9 @@ class Mempool {
   std::size_t size() const noexcept { return byTxid_.size(); }
   bool empty() const noexcept { return byTxid_.empty(); }
   bool contains(const Digest32& txid) const { return byTxid_.count(txid) != 0; }
+  // True iff this sender currently occupies its single pending slot (drives the
+  // RPC /account pendingNonce = confirmedNonce + 1).
+  bool hasPending(const Address& from) const { return bySender_.count(from) != 0; }
   std::size_t cap() const noexcept { return cap_; }
 
  private:

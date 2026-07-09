@@ -28,6 +28,11 @@ using chain::Reason;
 using chain::replayFromGenesis;
 using chain::VerifyResult;
 
+int rpc_port_for(const NodeConfig& cfg) {
+  if (cfg.rpc_port != 0) return cfg.rpc_port;  // --rpc-port override
+  return cfg.port_base + kRpcPortOffset + cfg.node_index;
+}
+
 bool should_seal_now(const NodeConfig& cfg, std::uint64_t elapsed_ms, std::size_t mempool_size) {
   if (!cfg.mine) return false;                             // only the "M" role seals
   if (mempool_size >= cfg.max_txns_per_block) return true;  // early flush at MAX_TXNS
@@ -125,6 +130,7 @@ NodeConfig resolve_config(int argc, char** argv) {
       cfg.difficulty = static_cast<unsigned>(std::strtoul(val(), nullptr, 10));
     else if (is("--node-index")) cfg.node_index = static_cast<int>(std::strtol(val(), nullptr, 10));
     else if (is("--port-base")) cfg.port_base = static_cast<int>(std::strtol(val(), nullptr, 10));
+    else if (is("--rpc-port")) cfg.rpc_port = static_cast<int>(std::strtol(val(), nullptr, 10));
     else if (is("--max-skew")) cfg.max_skew_s = std::strtoull(val(), nullptr, 10);
     else if (is("--log-format")) cfg.log_format = val();
     // Unknown flags are ignored at M1 (M4 wires --peers etc.).

@@ -14,12 +14,16 @@
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <mutex>
+#include <string>
 #include <thread>
 
 #include "txchain/chain/reason.hpp"
 #include "txchain/chain/validate.hpp"
 #include "txchain/crypto/hashutil.hpp"
+#include "txchain/mempool/mempool.hpp"
 #include "txchain/node/node.hpp"
+#include "txchain/rpc.hpp"
 #include "txchain/wallet/wallet.hpp"
 
 namespace {
@@ -85,14 +89,57 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, on_signal);
   std::signal(SIGTERM, on_signal);
 
-  // Event loop: poll on a short tick; seal when the cadence timer (or a full
-  // mempool — none yet at M1) says so. sleep_for lives ONLY here, never in the
-  // tested seal step.
+  // Shared-state lock — the M2 stand-in for the Pillar-5 shared_mutex. The RPC
+  // thread and the seal loop serialize ALL access to the chain + mempool through
+  // it (reads and the single mutation alike, until the shared_mutex lands).
+  std::mutex node_mtx;
+  mempool::Mempool mp([&nd](const chain::Address& a) { return nd.chain().account(a); });
+
+  // HTTP RPC surface (POST /tx, GET /account/{addr}, GET /tip), bound to loopback.
+  rpc::RpcContext rpc_ctx{
+      [&nd](const chain::Address& a) { return nd.chain().account(a); },
+      [&nd]() {
+        const chain::Chain& c = nd.chain();
+        const auto& blk = c.blockAt(c.height());
+        rpc::TipInfo t;
+        t.index = c.height();
+        t.blockHash = blk.header.hash();
+        t.prevHash = blk.header.prevHash;
+        t.cumWork = c.cumWork();
+        t.difficulty = c.difficulty();
+        t.timestamp = blk.header.timestamp;
+        return t;
+      },
+      mp};
+  rpc::HttpServer rpc_server(
+      node::rpc_port_for(cfg),
+      [&](const std::string& m, const std::string& target, const std::string& body) {
+        std::lock_guard<std::mutex> lk(node_mtx);  // consistent snapshot under the lock
+        return rpc::handle_request(m, target, body, rpc_ctx);
+      });
+  std::thread rpc_thread;
+  if (!cfg.no_rpc) {
+    if (rpc_server.start()) {
+      std::printf("{\"event\":\"rpc_up\",\"port\":%d}\n", rpc_server.port());
+      std::fflush(stdout);
+      rpc_thread = std::thread([&rpc_server]() { rpc_server.run(); });
+    } else {
+      std::printf("{\"event\":\"rpc_error\",\"detail\":\"cannot bind rpc port\"}\n");
+    }
+  }
+
+  // Event loop: poll on a short tick; seal when the cadence timer says so. Sealing
+  // mutates the chain, so it runs under the shared lock. sleep_for lives ONLY
+  // here, never in the tested seal step. (Draining the mempool into blocks is M3
+  // candidate assembly; M2 seals empty blocks.)
   std::uint64_t last_seal_ms = now_millis();
   while (!g_stop.load()) {
-    const std::size_t mempool_size = 0;  // M1: no mempool (txns arrive in M2)
-    if (node::should_seal_now(cfg, now_millis() - last_seal_ms, mempool_size)) {
-      const chain::Reason r = nd.seal_next_block(now_seconds());
+    if (node::should_seal_now(cfg, now_millis() - last_seal_ms, /*mempool_size=*/0)) {
+      chain::Reason r;
+      {
+        std::lock_guard<std::mutex> lk(node_mtx);
+        r = nd.seal_next_block(now_seconds());
+      }
       last_seal_ms = now_millis();
       if (r == chain::Reason::OK) {
         std::printf("{\"event\":\"block_sealed\",\"height\":%llu,\"tip\":\"%s\"}\n",
@@ -103,6 +150,9 @@ int main(int argc, char** argv) {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+
+  rpc_server.stop();
+  if (rpc_thread.joinable()) rpc_thread.join();
 
   // Graceful shutdown: the last committed block is already fsync'd, so a restart
   // replay-validates and resumes with no data loss (Node §1.3 shutdown).

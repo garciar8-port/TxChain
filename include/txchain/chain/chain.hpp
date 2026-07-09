@@ -29,6 +29,7 @@ public:
   std::uint64_t numBlocks() const;                // blocks_.size()
   Hash256 tipHash() const;                        // tip header hash
   Work cumWork() const;                           // Σ per-block work
+  unsigned difficulty() const;                    // current PoW target D (0 at M1–M2)
   AccountState account(const Address& a) const;   // {0,0} if absent
   const Block& blockAt(std::uint64_t idx) const;  // throws std::out_of_range if oob
 

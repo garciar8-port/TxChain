@@ -35,6 +35,8 @@ Hash256 Chain::tipHash() const { return blocks_.back().header.hash(); }
 
 Work Chain::cumWork() const { return cumWork_; }
 
+unsigned Chain::difficulty() const { return difficulty_; }
+
 AccountState Chain::account(const Address& a) const {
   const auto it = state_.find(a);
   return it == state_.end() ? AccountState{} : it->second;

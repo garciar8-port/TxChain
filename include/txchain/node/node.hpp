@@ -34,11 +34,17 @@ struct NodeConfig {
   unsigned difficulty = 0;               // M1 seals at D=0 (flag default 16, inert at M1)
   int node_index = 0;
   int port_base = 29000;
+  int rpc_port = 0;                      // 0 ⇒ derive from port_base/node_index
   bool no_rpc = false;
   bool no_p2p = false;
   std::uint64_t max_skew_s = 7200;
   std::string log_format = "json";
 };
+
+// RPC port derivation (Node/CLI §1.2): (port_base + kRpcPortOffset) + node_index
+// (default 30000 + i), unless --rpc-port overrides it.
+inline constexpr int kRpcPortOffset = 1000;
+int rpc_port_for(const NodeConfig& cfg);
 
 // Resolve the effective config with precedence: built-in default → <datadir>/node.json
 // (or the --config file) → CLI flag (CLI wins). Pure over argv.
@@ -80,6 +86,8 @@ class Node {
   chain::Hash256 tipHash() const { return chain_.tipHash(); }
   const NodeConfig& config() const { return cfg_; }
   const chain::ChainStore& store() const { return store_; }
+  // Read-only view of the committed chain (tip/account reads for the RPC surface).
+  const chain::Chain& chain() const { return chain_; }
 
  private:
   Node(NodeConfig cfg, chain::ChainStore store)

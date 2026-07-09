@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "txchain/chain/chain.hpp"
@@ -12,11 +13,16 @@
 #include "txchain/chain/params.hpp"
 #include "txchain/chain/reason.hpp"
 #include "txchain/chain/types.hpp"
+#include "txchain/crypto/address.hpp"
+#include "txchain/crypto/ed25519.hpp"
 #include "txchain/crypto/fixedbytes.hpp"
 #include "txchain/crypto/hashutil.hpp"
+#include "txchain/crypto/sha256.hpp"
+#include "txchain/serialize/canonical.hpp"
 
 namespace {
 
+using txchain::chain::Address;
 using txchain::chain::Block;
 using txchain::chain::Chain;
 using txchain::chain::GENESIS_ALLOC;
@@ -28,7 +34,8 @@ using txchain::chain::Work;
 
 constexpr std::uint64_t NOW = 2000000000;  // year 2033, well past genesis
 
-// A distinct zero-amount txn (passes the V7 underflow check; unique `from`).
+// A distinct zero-amount txn (unique `from`). Only used where the V6 size cap
+// rejects the block BEFORE the V7 gate runs (so the txn need not be signed).
 Txn zero_txn(std::uint8_t tag) {
   Txn t;
   t.ver = 1;
@@ -36,6 +43,27 @@ Txn zero_txn(std::uint8_t tag) {
   t.to[0] = 0xFF;
   t.amount = 0;
   t.nonce = 0;
+  return t;
+}
+
+// A validly-signed txn from a genesis identity (seed = SHA-256("txchain-genesis-"||name)).
+txchain::crypto::Seed32 genesis_seed(const std::string& name) {
+  const std::string s = "txchain-genesis-" + name;
+  return txchain::crypto::sha256(txchain::crypto::ByteView(
+      reinterpret_cast<const txchain::crypto::Byte*>(s.data()), s.size()));
+}
+
+Txn signed_txn(const txchain::crypto::Seed32& seed, const Address& to, std::uint64_t amount,
+                std::uint64_t nonce) {
+  Txn t;
+  t.ver = 1;
+  t.pubkey = txchain::crypto::derive_pubkey(seed);
+  t.from = txchain::crypto::address(t.pubkey);
+  t.to = to;
+  t.amount = amount;
+  t.nonce = nonce;
+  const auto p = txchain::serialize::signed_payload(t);
+  t.sig = txchain::crypto::sign(seed, txchain::crypto::ByteView(p.data(), p.size()));
   return t;
 }
 
@@ -111,8 +139,13 @@ TEST(ConnectBlock, V6TooManyTxns) {
 
 TEST(ConnectBlock, V6EightTxnsOk) {
   Chain c;
+  // Eight validly-signed txns from racheal (balance 1000), nonces 0..7 — the
+  // block-size cap boundary now also has to pass the V7 verify gate.
+  const auto seed = genesis_seed("racheal");
+  const Address oliver =
+      txchain::crypto::address(txchain::crypto::derive_pubkey(genesis_seed("oliver")));
   std::vector<Txn> eight;
-  for (int i = 0; i < 8; ++i) eight.push_back(zero_txn(static_cast<std::uint8_t>(i + 1)));
+  for (std::uint64_t i = 0; i < 8; ++i) eight.push_back(signed_txn(seed, oliver, 1, i));
   const Block b = child(c, eight, GENESIS_TIMESTAMP + 1);
   EXPECT_EQ(c.connectBlock(b, NOW), Reason::OK);
   EXPECT_EQ(c.height(), 1u);

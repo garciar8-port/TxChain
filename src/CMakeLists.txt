@@ -18,6 +18,7 @@ add_library(txchain_core STATIC
   chain/chain.cpp
   chain/genesis.cpp
   chain/validate.cpp
+  chain/gate.cpp
   chain/store.cpp
   node/node.cpp
   wallet/wallet.cpp

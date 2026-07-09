@@ -1,10 +1,12 @@
 #include "txchain/chain/chain.hpp"
 
 #include "txchain/chain.hpp"        // umbrella (module_name)
+#include "txchain/chain/gate.hpp"   // applyTxn — the shared per-txn verify gate
 #include "txchain/chain/genesis.hpp"
 #include "txchain/chain/validate.hpp"
 
 #include <ctime>
+#include <cstddef>
 #include <map>
 #include <utility>
 #include <vector>
@@ -66,28 +68,23 @@ Reason Chain::connectBlock(const Block& b, std::uint64_t now_s) {
   // V6 — block-size cap.
   if (b.txns.size() > MAX_TXNS_PER_BLOCK) return Reason::BAD_TXNS_HASH;
 
-  // V7 — per-txn gate + commit against a scratch copy. The address→sig→nonce
-  // checks (steps 1–4) are inert at M1 (activated in M2); the balance commit and
-  // its defensive underflow check are wired now so later pillars just turn on
-  // their steps. All mutation happens on `work`, never state_, until commit.
+  // V7 — per-txn gate + commit against a scratch copy, using the SAME shared
+  // predicate (applyTxn) as replayFromGenesis, in block-inclusion order. The
+  // address→sig→nonce→funds checks now run for real (M2). All mutation happens
+  // on `work`, never state_, until commit; any txn failure discards `work`.
   std::map<Address, AccountState> work = state_;
   std::vector<std::pair<Address, AccountState>> inverse;
-  for (const auto& t : b.txns) {
+  for (std::size_t ti = 0; ti < b.txns.size(); ++ti) {
+    const Txn& t = b.txns[ti];
+    // Record the pre-images for the undo log BEFORE the gate mutates `work`.
     const AccountState from_before = work.count(t.from) ? work[t.from] : AccountState{};
     const AccountState to_before = work.count(t.to) ? work[t.to] : AccountState{};
-    if (from_before.balance < t.amount) return Reason::INSUFFICIENT_FUNDS;  // discards work
+
+    const Reason r = applyTxn(work, t, b.header.index, ti);
+    if (r != Reason::OK) return r;  // discards work; state_/blocks_/cumWork_ untouched
 
     inverse.push_back({t.from, from_before});
     inverse.push_back({t.to, to_before});
-
-    AccountState from_after = from_before;
-    from_after.balance -= t.amount;
-    from_after.nonce += 1;
-    AccountState to_after = to_before;
-    to_after.balance += t.amount;
-
-    work[t.from] = from_after;
-    work[t.to] = to_after;
   }
 
   // All checks passed — atomic commit. No earlier step mutated state_/blocks_/

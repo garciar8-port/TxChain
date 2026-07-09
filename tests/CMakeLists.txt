@@ -57,3 +57,11 @@ target_include_directories(txchain_serialize_tests PRIVATE ${CMAKE_CURRENT_SOURC
 target_link_libraries(txchain_serialize_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_serialize_tests PROPERTIES LABELS serialize)
+
+# Frame-codec test (socket round-trip; uses a writer thread to avoid deadlock).
+find_package(Threads REQUIRED)
+add_executable(txchain_frame_tests
+  golden/frame_codec_test.cpp)
+target_link_libraries(txchain_frame_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main Threads::Threads)
+gtest_discover_tests(txchain_frame_tests PROPERTIES LABELS frame)

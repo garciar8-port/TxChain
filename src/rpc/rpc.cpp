@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <string>
 
+#include <picojson.h>  // vendored (SYSTEM include on txchain_core), INT64 mode
+
 #include "txchain/crypto/fixedbytes.hpp"
 #include "txchain/crypto/hashutil.hpp"  // to_hex / from_hex
 #include "txchain/crypto/sha256.hpp"
@@ -12,6 +14,28 @@
 namespace txchain::rpc {
 
 const char* module_name() noexcept { return "rpc"; }
+
+std::optional<std::string> json_get_string(const std::string& json, const std::string& key) {
+  picojson::value v;
+  if (!picojson::parse(v, json).empty() || !v.is<picojson::object>()) return std::nullopt;
+  const auto& o = v.get<picojson::object>();
+  const auto it = o.find(key);
+  if (it == o.end() || !it->second.is<std::string>()) return std::nullopt;
+  return it->second.get<std::string>();
+}
+
+std::optional<std::uint64_t> json_get_u64(const std::string& json, const std::string& key) {
+  picojson::value v;
+  if (!picojson::parse(v, json).empty() || !v.is<picojson::object>()) return std::nullopt;
+  const auto& o = v.get<picojson::object>();
+  const auto it = o.find(key);
+  if (it == o.end()) return std::nullopt;
+  if (it->second.is<std::int64_t>() && it->second.get<std::int64_t>() >= 0)
+    return static_cast<std::uint64_t>(it->second.get<std::int64_t>());
+  if (it->second.is<double>() && it->second.get<double>() >= 0)
+    return static_cast<std::uint64_t>(it->second.get<double>());
+  return std::nullopt;
+}
 
 namespace {
 

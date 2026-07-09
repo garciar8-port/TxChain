@@ -17,6 +17,7 @@
 #include "txchain/crypto/address.hpp"
 #include "txchain/crypto/ed25519.hpp"
 #include "txchain/crypto/hashutil.hpp"
+#include "txchain/serialize/canonical.hpp"
 
 namespace txchain::wallet {
 
@@ -144,6 +145,20 @@ LoadResult wallet_load(const std::string& path) {
   r.wallet = w;
   r.ok = true;
   return r;
+}
+
+serialize::Txn sign_txn(const crypto::Seed32& seed, const crypto::Address20& to,
+                        std::uint64_t amount, std::uint64_t nonce) {
+  serialize::Txn t;
+  t.ver = serialize::kTxnVersion;
+  t.pubkey = crypto::derive_pubkey(seed);
+  t.from = crypto::address(t.pubkey);
+  t.to = to;
+  t.amount = amount;
+  t.nonce = nonce;
+  const auto payload = serialize::signed_payload(t);  // 89 canonical bytes
+  t.sig = crypto::sign(seed, crypto::ByteView(payload.data(), payload.size()));
+  return t;
 }
 
 LoadResult load_or_create_wallet(const std::string& datadir) {

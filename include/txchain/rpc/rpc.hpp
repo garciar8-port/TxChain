@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "txchain/chain/types.hpp"
@@ -51,6 +52,12 @@ struct RpcResponse {
 // Body is the request body (used by POST /tx). Never throws.
 RpcResponse handle_request(const std::string& method, const std::string& target,
                            const std::string& body, RpcContext& ctx);
+
+// Minimal JSON field extractors over a flat object body (picojson-backed) — used
+// by `txchain send` to read a /account nonce or a /tx {txid}/{error}. nullopt if
+// the body is not an object or the key is absent / of the wrong type.
+std::optional<std::string> json_get_string(const std::string& json, const std::string& key);
+std::optional<std::uint64_t> json_get_u64(const std::string& json, const std::string& key);
 
 // Scaffold marker (kept from CRE-188) so the module object is non-empty.
 const char* module_name() noexcept;

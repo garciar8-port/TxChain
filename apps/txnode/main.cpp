@@ -17,8 +17,11 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
+#include "txchain/chain/params.hpp"
 #include "txchain/chain/reason.hpp"
+#include "txchain/chain/types.hpp"
 #include "txchain/chain/validate.hpp"
 #include "txchain/crypto/hashutil.hpp"
 #include "txchain/mempool/mempool.hpp"
@@ -136,15 +139,22 @@ int main(int argc, char** argv) {
   while (!g_stop.load()) {
     if (node::should_seal_now(cfg, now_millis() - last_seal_ms, /*mempool_size=*/0)) {
       chain::Reason r;
+      std::vector<chain::Txn> batch;
       {
         std::lock_guard<std::mutex> lk(node_mtx);
-        r = nd.seal_next_block(now_seconds());
+        // Drain up to a block's worth of admitted txns (ascending admission order).
+        for (const auto* e : mp.sortedBySeq()) {
+          batch.push_back(e->txn);
+          if (batch.size() >= chain::MAX_TXNS_PER_BLOCK) break;
+        }
+        r = nd.seal_next_block(now_seconds(), batch);
+        if (r == chain::Reason::OK && !batch.empty()) mp.evictIncluded(batch);
       }
       last_seal_ms = now_millis();
       if (r == chain::Reason::OK) {
-        std::printf("{\"event\":\"block_sealed\",\"height\":%llu,\"tip\":\"%s\"}\n",
+        std::printf("{\"event\":\"block_sealed\",\"height\":%llu,\"tip\":\"%s\",\"txns\":%zu}\n",
                     static_cast<unsigned long long>(nd.height()),
-                    crypto::to_hex(nd.tipHash()).c_str());
+                    crypto::to_hex(nd.tipHash()).c_str(), batch.size());
         std::fflush(stdout);
       }
     }

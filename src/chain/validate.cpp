@@ -117,6 +117,15 @@ VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t n
   return VerifyResult{true, 0, Reason::OK, ""};
 }
 
+std::map<Address, AccountState> replayState(const std::vector<Block>& blocks) {
+  std::map<Address, AccountState> state;
+  applyGenesis(state);
+  for (std::size_t i = 1; i < blocks.size(); ++i)
+    for (std::size_t ti = 0; ti < blocks[i].txns.size(); ++ti)
+      (void)applyTxn(state, blocks[i].txns[ti], blocks[i].header.index, ti);
+  return state;
+}
+
 std::string monitor_verify_line(const VerifyResult& r, std::size_t block_count) {
   if (r.ok) return "OK " + std::to_string(block_count) + " blocks";
   std::string s = "FAIL block " + std::to_string(r.failIndex) + ": " + reasonName(r.reason);

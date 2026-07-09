@@ -11,9 +11,11 @@
 // Non-goals (Cryptography §1): no at-rest encryption, passphrases, HD wallets,
 // rotation, or multisig. wallet.key is plaintext, mode 0600 by design.
 
+#include <cstdint>
 #include <string>
 
 #include "txchain/crypto/fixedbytes.hpp"
+#include "txchain/serialize/types.hpp"
 
 namespace txchain::wallet {
 
@@ -63,5 +65,13 @@ LoadResult wallet_load(const std::string& path);
 // Node-startup helper (Node/CLI §1.3): load <datadir>/wallet.key if present, else
 // create one and persist it. Mirrors the chain.jsonl load-or-init pattern.
 LoadResult load_or_create_wallet(const std::string& datadir);
+
+// Build a fully-signed canonical transaction from a wallet seed (Data Flow §A):
+// pubkey = derive_pubkey(seed); from = SHA-256(pubkey)[:20]; sign the 89-byte
+// payload (ver‖from‖to‖amount‖nonce‖pubkey) with RFC 8032 Ed25519 (deterministic).
+// The single canonical serializer produces the bytes — never a CLI re-implementation.
+// The result admits + connects iff amount/nonce are valid against the payer's account.
+serialize::Txn sign_txn(const crypto::Seed32& seed, const crypto::Address20& to,
+                        std::uint64_t amount, std::uint64_t nonce);
 
 }  // namespace txchain::wallet

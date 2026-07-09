@@ -110,6 +110,14 @@ target_link_libraries(txchain_rpc_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main Threads::Threads)
 gtest_discover_tests(txchain_rpc_tests PROPERTIES LABELS rpc)
 
+# `txchain send` end-to-end (sign_txn builder, gate rejections, drain-seal,
+# offline nonce, HTTP client round-trip). Threads for the in-process server.
+add_executable(txchain_send_tests
+  unit/send_test.cpp)
+target_link_libraries(txchain_send_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main Threads::Threads)
+gtest_discover_tests(txchain_send_tests PROPERTIES LABELS send)
+
 # NO_CRYPTO honesty guard (Architecture Crypto §9): assert no `return true` is
 # ever guarded by a crypto NO_CRYPTO #ifdef (the banned fake-verify pattern).
 # A pure source scan — runs on every ctest invocation, every matrix leg.

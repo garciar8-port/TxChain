@@ -14,10 +14,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "txchain/chain/chain.hpp"
 #include "txchain/chain/reason.hpp"
 #include "txchain/chain/store.hpp"
+#include "txchain/chain/types.hpp"
 #include "txchain/chain/validate.hpp"
 
 namespace txchain::node {
@@ -76,11 +78,14 @@ class Node {
   // must not be served. now_s feeds V3's skew check (injectable for tests).
   static Node boot(const NodeConfig& cfg, std::uint64_t now_s, BootResult& out);
 
-  // Seal one empty block (M1): index = tip.index+1, prevHash = tipHash,
-  // timestamp = max(now_s, tip.timestamp+1) for strict monotonicity, txnsHash =
-  // SHA-256(""), nonce = 0. connectBlock validates + commits; on OK the block is
-  // appended+fsync'd and the tip advances. Returns the first failing Reason else.
-  chain::Reason seal_next_block(std::uint64_t now_s);
+  // Seal one block: index = tip.index+1, prevHash = tipHash, timestamp =
+  // max(now_s, tip.timestamp+1) for strict monotonicity, nonce = 0 (D=0 at M2).
+  // `txns` is the ordered batch to include (empty ⇒ an empty block, the M1
+  // cadence behavior; a non-empty batch is the M2 mempool drain — full candidate
+  // assembly with coinbase + PoW is M3). connectBlock validates + commits; on OK
+  // the block is appended+fsync'd and the tip advances. Returns the first failing
+  // Reason otherwise (state untouched — the caller keeps the txns in the mempool).
+  chain::Reason seal_next_block(std::uint64_t now_s, const std::vector<chain::Txn>& txns = {});
 
   std::uint64_t height() const { return chain_.height(); }
   chain::Hash256 tipHash() const { return chain_.tipHash(); }

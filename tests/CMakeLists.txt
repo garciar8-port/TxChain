@@ -78,6 +78,14 @@ target_link_libraries(txchain_node_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_node_tests PROPERTIES LABELS node)
 
+# Mempool admission tests (admit() ordering, single-pending-nonce, dedup/cap/
+# eviction, AdmitResult↔Reason token parity). Reuses the shared consensus gate.
+add_executable(txchain_mempool_tests
+  unit/mempool_test.cpp)
+target_link_libraries(txchain_mempool_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
+gtest_discover_tests(txchain_mempool_tests PROPERTIES LABELS mempool)
+
 # Wallet key-material tests (wallet.key format, keygen, load/validate). Golden
 # derivation is backend-independent (RFC 8032) — same on sodium and ref10.
 add_executable(txchain_wallet_tests

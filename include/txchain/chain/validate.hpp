@@ -10,6 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -34,6 +35,12 @@ inline bool operator==(const VerifyResult& a, const VerifyResult& b) noexcept {
 // (failIndex, reason, detail). The no-`now` form uses the wall clock (V3 skew).
 VerifyResult replayFromGenesis(const std::vector<Block>& blocks);
 VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t now_s);
+
+// Reconstruct the committed account/nonce index from a block list (genesis +
+// every txn applied through the shared gate). Assumes the chain is already valid
+// (validate with replayFromGenesis first); used for offline next-nonce lookup by
+// `txchain send --datadir`. An absent address is the implicit {0,0} account.
+std::map<Address, AccountState> replayState(const std::vector<Block>& blocks);
 
 // The FROZEN monitor-verify output contract (§7.3):
 //   OK   →  "OK <N> blocks"                          (N = block_count, genesis counted)

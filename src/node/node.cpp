@@ -22,6 +22,7 @@ namespace fs = std::filesystem;
 using chain::Block;
 using chain::BlockHeader;
 using chain::ChainStore;
+using chain::Txn;
 using chain::genesisBlock;
 using chain::LoadResult;
 using chain::Reason;
@@ -193,16 +194,16 @@ Node Node::boot(const NodeConfig& cfg, std::uint64_t now_s, BootResult& out) {
   return node;
 }
 
-Reason Node::seal_next_block(std::uint64_t now_s) {
+Reason Node::seal_next_block(std::uint64_t now_s, const std::vector<Txn>& txns) {
   const BlockHeader tip = chain_.blockAt(chain_.height()).header;
 
   Block b;
   b.header.index = chain_.height() + 1;
   b.header.timestamp = std::max<std::uint64_t>(now_s, tip.timestamp + 1);  // strict monotonic
   b.header.prevHash = chain_.tipHash();
-  // M1: empty block. txnsHash over the empty txn list ⇒ SHA-256("").
+  b.txns = txns;  // empty ⇒ SHA-256("") (M1 cadence); non-empty ⇒ M2 mempool drain
   b.header.txnsHash = b.computeTxnsHash();
-  b.header.nonce = 0;  // no PoW at M1 (D=0)
+  b.header.nonce = 0;  // no PoW at M1–M2 (D=0)
 
   const Reason r = chain_.connectBlock(b, now_s);
   if (r != Reason::OK) return r;

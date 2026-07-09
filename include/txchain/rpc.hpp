@@ -5,6 +5,7 @@
 // minimal loopback HTTP/1.1 server (rpc/http_server.hpp). Depends on chain
 // (tip/account reads) and mempool (POST /tx → admit), bottom-up.
 
+#include "txchain/rpc/http_client.hpp"
 #include "txchain/rpc/http_server.hpp"
 #include "txchain/rpc/rpc.hpp"
 

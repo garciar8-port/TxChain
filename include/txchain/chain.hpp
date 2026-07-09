@@ -8,6 +8,8 @@
 
 #include "txchain/chain/chain.hpp"
 #include "txchain/chain/genesis.hpp"
+#include "txchain/chain/params.hpp"
+#include "txchain/chain/reason.hpp"
 #include "txchain/chain/types.hpp"
 
 namespace txchain::chain {

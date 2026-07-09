@@ -1,10 +1,12 @@
 #pragma once
-// rpc module — public interface (txchain_core).
+// rpc module — public umbrella header (txchain_core).
 //
-// Phase-0 scaffold (CRE-188): this header only exposes a scaffold marker that
-// proves the module compiles and links into the txchain_core static library.
-// The real rpc API lands in a later M0/pillar ticket. This module has no
-// dependency on any sibling module at this stage (acyclic, bottom-up).
+// The node's HTTP RPC surface: the pure request handler (rpc/rpc.hpp) and the
+// minimal loopback HTTP/1.1 server (rpc/http_server.hpp). Depends on chain
+// (tip/account reads) and mempool (POST /tx → admit), bottom-up.
+
+#include "txchain/rpc/http_server.hpp"
+#include "txchain/rpc/rpc.hpp"
 
 namespace txchain::rpc {
 

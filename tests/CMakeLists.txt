@@ -102,6 +102,14 @@ target_link_libraries(txchain_frame_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main Threads::Threads)
 gtest_discover_tests(txchain_frame_tests PROPERTIES LABELS frame)
 
+# RPC tests (pure handle_request dispatch + port derivation + an in-process HTTP
+# round-trip over real loopback sockets — needs Threads for the server thread).
+add_executable(txchain_rpc_tests
+  unit/rpc_test.cpp)
+target_link_libraries(txchain_rpc_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main Threads::Threads)
+gtest_discover_tests(txchain_rpc_tests PROPERTIES LABELS rpc)
+
 # NO_CRYPTO honesty guard (Architecture Crypto §9): assert no `return true` is
 # ever guarded by a crypto NO_CRYPTO #ifdef (the banned fake-verify pattern).
 # A pure source scan — runs on every ctest invocation, every matrix leg.

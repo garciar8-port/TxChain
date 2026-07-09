@@ -112,4 +112,10 @@ crypto::Digest32 block_hash(const BlockHeader& h) noexcept {
   return crypto::sha256(ByteView(b.data(), b.size()));
 }
 
+// Member-method sugar (Architecture Chain/State §1) — delegate to the free
+// functions above; qualified names dodge the Txn::txid / free-txid overload set.
+crypto::Digest32 Txn::txid() const { return ::txchain::serialize::txid(*this); }
+crypto::Digest32 BlockHeader::hash() const { return ::txchain::serialize::block_hash(*this); }
+crypto::Digest32 Block::computeTxnsHash() const { return ::txchain::serialize::txns_hash(txns); }
+
 }  // namespace txchain::serialize

@@ -34,6 +34,9 @@ struct Txn {
   std::uint64_t nonce = 0;
   PubKey32 pubkey{};
   Sig64 sig{};
+
+  // Derived (never stored authoritatively): SHA-256 over the canonical 153 bytes.
+  Digest32 txid() const;
 };
 
 inline bool operator==(const Txn& a, const Txn& b) noexcept {
@@ -49,6 +52,9 @@ struct BlockHeader {
   Digest32 prevHash{};
   Digest32 txnsHash{};
   std::uint64_t nonce = 0;
+
+  // Derived: SHA-256 over the canonical 88 bytes (= blockHash).
+  Digest32 hash() const;
 };
 
 inline bool operator==(const BlockHeader& a, const BlockHeader& b) noexcept {
@@ -63,6 +69,9 @@ inline bool operator!=(const BlockHeader& a, const BlockHeader& b) noexcept {
 struct Block {
   BlockHeader header;
   std::vector<Txn> txns;
+
+  // SHA-256(tx0 ‖ tx1 ‖ …) over the ordered canonical txns (empty ⇒ SHA-256("")).
+  Digest32 computeTxnsHash() const;
 };
 
 inline bool operator==(const Block& a, const Block& b) noexcept {

@@ -1,15 +1,18 @@
 #pragma once
-// chain module — public interface (txchain_core).
+// chain module — public umbrella header (txchain_core).
 //
-// Phase-0 scaffold (CRE-188): this header only exposes a scaffold marker that
-// proves the module compiles and links into the txchain_core static library.
-// The real chain API lands in a later M0/pillar ticket. This module has no
-// dependency on any sibling module at this stage (acyclic, bottom-up).
+// The in-memory hash-linked Block/Chain types, the deterministic genesis
+// allocation, and the committed account-state map. connectBlock validation
+// (CRE-196), the from-genesis replay validator (CRE-197), and chain.jsonl
+// persistence (CRE-198) build on these.
+
+#include "txchain/chain/chain.hpp"
+#include "txchain/chain/genesis.hpp"
+#include "txchain/chain/types.hpp"
 
 namespace txchain::chain {
 
-// Returns the module's name. Exists solely so the object is non-empty and the
-// symbol can be linked from tests, proving the library boundary is wired.
+// Scaffold marker (kept from CRE-188) so the module object is non-empty.
 const char* module_name() noexcept;
 
 }  // namespace txchain::chain

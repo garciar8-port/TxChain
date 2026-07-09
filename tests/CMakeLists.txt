@@ -65,3 +65,10 @@ add_executable(txchain_frame_tests
 target_link_libraries(txchain_frame_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main Threads::Threads)
 gtest_discover_tests(txchain_frame_tests PROPERTIES LABELS frame)
+
+# NO_CRYPTO honesty guard (Architecture Crypto §9): assert no `return true` is
+# ever guarded by a crypto NO_CRYPTO #ifdef (the banned fake-verify pattern).
+# A pure source scan — runs on every ctest invocation, every matrix leg.
+add_test(NAME no_crypto_guard
+  COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/check_no_fake_verify.sh ${CMAKE_SOURCE_DIR})
+set_tests_properties(no_crypto_guard PROPERTIES LABELS guard)

@@ -49,6 +49,12 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+      # NO_CRYPTO must never fake verification (Architecture Crypto §9). This
+      # source scan fails if a `return true` is guarded by a crypto NO_CRYPTO
+      # #ifdef. (Also registered as the `no_crypto_guard` ctest above.)
+      - name: Guard — no fake verify
+        run: bash scripts/check_no_fake_verify.sh .
+
   # Placeholder: the dedicated ThreadSanitizer / ASan+UBSan integration job is
   # Pillar 5's concern (CRE-219, m5-sanitizer-builds-ci). Intentionally NOT wired
   # here — the TXCHAIN_SANITIZE option exists but is exercised by that ticket.

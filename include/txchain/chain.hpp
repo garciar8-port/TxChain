@@ -10,6 +10,7 @@
 #include "txchain/chain/genesis.hpp"
 #include "txchain/chain/params.hpp"
 #include "txchain/chain/reason.hpp"
+#include "txchain/chain/store.hpp"
 #include "txchain/chain/types.hpp"
 #include "txchain/chain/validate.hpp"
 

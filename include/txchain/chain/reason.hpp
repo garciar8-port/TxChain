@@ -21,4 +21,7 @@ enum class Reason : std::uint8_t {
   BAD_SUPPLY,          // total-supply invariant broken (M3 coinbase)
 };
 
+// Exact enum spelling for output ("OK", "BAD_LINK", …). Used by monitor verify.
+const char* reasonName(Reason r) noexcept;
+
 }  // namespace txchain::chain

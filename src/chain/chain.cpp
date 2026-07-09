@@ -2,6 +2,7 @@
 
 #include "txchain/chain.hpp"        // umbrella (module_name)
 #include "txchain/chain/genesis.hpp"
+#include "txchain/chain/validate.hpp"
 
 #include <ctime>
 #include <map>
@@ -98,6 +99,10 @@ Reason Chain::connectBlock(const Block& b, std::uint64_t now_s) {
   return Reason::OK;
 }
 
-Reason Chain::validateChain() const { return Reason::OK; }  // TODO(CRE-197): from-genesis replay
+Reason Chain::validateChain() const {
+  // Ground truth: replay from genesis, ignoring the cached state_ entirely. Any
+  // disagreement with state_ would indicate a commit-path bug.
+  return replayFromGenesis(blocks_).reason;
+}
 
 }  // namespace txchain::chain

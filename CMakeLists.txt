@@ -26,8 +26,19 @@ include(warnings)
 
 # ---- Options (some are no-ops at this scaffold stage; real behavior lands in later tickets) ----
 option(TXCHAIN_BUILD_TESTS "Build the unit/golden/integration tests" ON)
+# NO_CRYPTO is a build-SMOKE flag (Architecture Crypto §9): it forces the
+# vendored ref10 Ed25519 backend (below) so CI needs no libsodium, and NOTHING
+# else. It NEVER fakes verification — crypto::verify stays the real ref10 verify,
+# SHA-256 stays the vendored impl, and the SAME golden/KAT set governs every
+# build (identical expected constants, no re-freeze). The one documented
+# allowance is that keygen MAY use a fixed non-CSPRNG seed under NO_CRYPTO; this
+# codebase does not even use that (keygen keeps real getentropy everywhere). The
+# banned `#ifdef NO_CRYPTO ... return true;` pattern is enforced by
+# scripts/check_no_fake_verify.sh (the `no_crypto_guard` test + a CI step).
+# (ref10 does NOT imply NO_CRYPTO: TXCHAIN_CRYPTO=ref10 is a real no-sodium
+# deployment mode, orthogonal to this smoke flag.)
 option(TXCHAIN_NO_CRYPTO
-  "Smoke build: force the vendored ref10 Ed25519 backend, no libsodium (behavior lands in CRE-190/CRE-194)" OFF)
+  "Smoke build: force the vendored ref10 Ed25519 backend, no libsodium. Never fakes verification." OFF)
 set(TXCHAIN_SANITIZE "" CACHE STRING "Sanitizer to enable: address | thread | undefined (empty = none)")
 set_property(CACHE TXCHAIN_SANITIZE PROPERTY STRINGS "" address thread undefined)
 

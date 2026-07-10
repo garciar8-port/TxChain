@@ -76,7 +76,8 @@ gtest_discover_tests(txchain_chain_tests PROPERTIES LABELS chain)
 add_executable(txchain_pow_tests
   unit/pow_coinbase_test.cpp
   unit/candidate_test.cpp
-  unit/miner_test.cpp)
+  unit/miner_test.cpp
+  unit/forkchoice_test.cpp)
 target_link_libraries(txchain_pow_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_pow_tests PROPERTIES LABELS pow)

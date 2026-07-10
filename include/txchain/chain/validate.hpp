@@ -33,8 +33,13 @@ inline bool operator==(const VerifyResult& a, const VerifyResult& b) noexcept {
 
 // Replay the whole chain from genesis and return pass or the first-failing
 // (failIndex, reason, detail). The no-`now` form uses the wall clock (V3 skew).
+// `difficulty` is the V4 PoW target (leading zero bits; 0 ⇒ V4 no-op) and
+// `reward` the per-block coinbase mint (0 ⇒ no coinbase); the shorter forms
+// default both to 0 (the M1–M2 configuration).
 VerifyResult replayFromGenesis(const std::vector<Block>& blocks);
 VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t now_s);
+VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t now_s,
+                               unsigned difficulty, std::uint64_t reward);
 
 // Reconstruct the committed account/nonce index from a block list (genesis +
 // every txn applied through the shared gate). Assumes the chain is already valid

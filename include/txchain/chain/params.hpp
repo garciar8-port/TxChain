@@ -23,4 +23,11 @@ inline constexpr std::size_t MAX_TXNS_PER_BLOCK = 8;
 // with the wrong amount is caught as BAD_SUPPLY.
 inline constexpr std::uint64_t COINBASE_REWARD = 50;
 
+// V4 Proof-of-Work target: a non-genesis block hash must have at least this many
+// leading zero bits (Data Model §3.3, Mempool/PoW §4.1). The M3 default; the
+// Chain/replay difficulty is configurable (0 keeps V4 a no-op for M1–M2 paths)
+// and the miner (m3-miner-loop-commit) flips the node to this value. Final
+// empirical calibration of the numeric default is m3-difficulty-calibration.
+inline constexpr unsigned DIFFICULTY_BITS = 16;
+
 }  // namespace txchain::chain

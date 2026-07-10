@@ -36,35 +36,26 @@ VerifyResult fail(std::uint64_t idx, Reason r, std::string detail) {
   return VerifyResult{false, idx, r, std::move(detail)};
 }
 
-// Human-readable detail for a per-txn gate failure, naming the offending txn —
-// e.g. "ed25519 verify failed for txn 2" (Chain/State §7.3 monitor-verify contract).
-std::string gate_detail(Reason r, std::size_t ti) {
-  const std::string suffix = " for txn " + std::to_string(ti);
-  switch (r) {
-    case Reason::BAD_ADDR: return "from != SHA-256(pubkey)[:20]" + suffix;
-    case Reason::BAD_SIG: return "ed25519 verify failed" + suffix;
-    case Reason::STALE_NONCE: return "nonce not next-expected" + suffix;
-    case Reason::INSUFFICIENT_FUNDS: return "amount exceeds balance" + suffix;
-    case Reason::BAD_SUPPLY: return "bad coinbase reward" + suffix;
-    case Reason::BAD_TXNS_HASH: return "malformed coinbase" + suffix;
-    default: return "txn" + suffix;
-  }
-}
-
 }  // namespace
 
 VerifyResult replayFromGenesis(const std::vector<Block>& blocks) {
-  return replayFromGenesis(blocks, wall_clock_now_s());
+  return replayFromGenesis(blocks, wall_clock_now_s(), 0, 0);
 }
 
 VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t now_s) {
+  return replayFromGenesis(blocks, now_s, 0, 0);
+}
+
+// Ground-truth from-genesis replay with the V4 PoW target `D` (required leading
+// zero bits; 0 ⇒ V4 is a no-op) and the per-block coinbase `reward` (0 ⇒ no
+// coinbase; COINBASE_REWARD ⇒ M3 requires exactly one coinbase per non-genesis
+// block). Genesis (index 0) is PoW-exempt and carries no coinbase.
+VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t now_s,
+                               unsigned D, std::uint64_t reward) {
   if (blocks.empty()) return fail(0, Reason::BAD_LINK, "empty chain");
 
   std::map<Address, AccountState> state;
   applyGenesis(state);  // the ONLY source of initial supply
-
-  const unsigned D = 0;            // M1 difficulty (Pillar 3 flips to 16)
-  const std::uint64_t REWARD = 0;  // M1 has no coinbase mint
 
   // ---- Genesis (index 0) ----
   const Block& b0 = blocks[0];
@@ -86,22 +77,18 @@ VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t n
     if (b.header.prevHash != prevHash) return fail(idx, Reason::BAD_LINK, "prevHash mismatch");
     if (!(b.header.timestamp > prevTime && b.header.timestamp <= now_s + MAX_CLOCK_SKEW_S))
       return fail(idx, Reason::BAD_LINK, "timestamp out of range");
-    if (!crypto::meets_difficulty(b.header.hash(), D))
+    if (!crypto::meets_difficulty(b.header.hash(), D))  // V4 — genesis exempt (loop starts at 1)
       return fail(idx, Reason::BAD_POW, "hash above target");
     if (b.computeTxnsHash() != b.header.txnsHash)
       return fail(idx, Reason::BAD_TXNS_HASH, "txns commitment mismatch");
     if (b.txns.size() > MAX_TXNS_PER_BLOCK)
       return fail(idx, Reason::BAD_TXNS_HASH, "too many txns");
 
-    // Per-txn gate + apply via the SAME shared predicate (applyTxn) that
-    // connectBlock uses, in block-inclusion order — so the ground-truth replay
-    // and the incremental commit can never disagree on a reason (Chain/State
-    // §4.5). address→sig→nonce→funds run for real (M2); the coinbase-exemption
-    // branch is present but dormant until M3.
-    for (std::size_t ti = 0; ti < b.txns.size(); ++ti) {
-      const Reason r = applyTxn(state, b.txns[ti], b.header.index, ti);
-      if (r != Reason::OK) return fail(idx, r, gate_detail(r, ti));
-    }
+    // Per-txn gate + coinbase via the SAME shared predicate (applyBlockTxns) that
+    // connectBlock uses, in block-inclusion order — so the ground-truth replay and
+    // the incremental commit can never disagree on a reason (Chain/State §4.5).
+    const BlockApplyResult ar = applyBlockTxns(state, b, reward);
+    if (ar.reason != Reason::OK) return fail(idx, ar.reason, ar.detail);
 
     prevHash = b.header.hash();
     prevTime = b.header.timestamp;
@@ -111,7 +98,7 @@ VerifyResult replayFromGenesis(const std::vector<Block>& blocks, std::uint64_t n
   std::uint64_t actual = 0;
   for (const auto& kv : state) actual += kv.second.balance;
   const std::uint64_t height = blocks.size() - 1;
-  const std::uint64_t expected = GENESIS_SUPPLY + height * REWARD;  // REWARD=0 at M1
+  const std::uint64_t expected = GENESIS_SUPPLY + height * reward;  // + Σ coinbase mints
   if (actual != expected) return fail(height, Reason::BAD_SUPPLY, "supply mismatch");
 
   return VerifyResult{true, 0, Reason::OK, ""};

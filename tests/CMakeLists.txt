@@ -70,6 +70,14 @@ target_link_libraries(txchain_chain_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_chain_tests PROPERTIES LABELS chain)
 
+# M3 Proof-of-Work + coinbase validation (V4 meets_difficulty, coinbase gate,
+# height×REWARD supply term) in connectBlock and replay — one shared predicate.
+add_executable(txchain_pow_tests
+  unit/pow_coinbase_test.cpp)
+target_link_libraries(txchain_pow_tests
+  PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
+gtest_discover_tests(txchain_pow_tests PROPERTIES LABELS pow)
+
 # Node lifecycle tests (boot self-validation + M1 cadence sealer + config
 # precedence). The sealer is driven with explicit timestamps — no real sleeping.
 add_executable(txchain_node_tests

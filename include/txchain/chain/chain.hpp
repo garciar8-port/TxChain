@@ -22,7 +22,11 @@ struct CommitDelta {
 
 class Chain {
 public:
-  Chain();  // initializes to genesis (height 0) + applyGenesis(state_)
+  // Initializes to genesis (height 0) + applyGenesis(state_). `difficulty` is the
+  // V4 PoW target (leading zero bits; 0 ⇒ V4 is a no-op, the M1–M2 default);
+  // `reward` is the per-block coinbase mint (0 ⇒ no coinbase expected, M1–M2;
+  // COINBASE_REWARD ⇒ M3 requires exactly one coinbase per non-genesis block).
+  explicit Chain(unsigned difficulty = 0, std::uint64_t reward = 0);
 
   // ---- reads (shared lock in Pillar 5) ----
   std::uint64_t height() const;                   // blocks_.size() - 1
@@ -30,6 +34,7 @@ public:
   Hash256 tipHash() const;                        // tip header hash
   Work cumWork() const;                           // Σ per-block work
   unsigned difficulty() const;                    // current PoW target D (0 at M1–M2)
+  std::uint64_t reward() const;                   // per-block coinbase mint (0 at M1–M2)
   AccountState account(const Address& a) const;   // {0,0} if absent
   const Block& blockAt(std::uint64_t idx) const;  // throws std::out_of_range if oob
 
@@ -49,7 +54,8 @@ private:
   std::vector<Block> blocks_;
   std::map<Address, AccountState> state_;
   Work cumWork_ = 0;
-  unsigned difficulty_ = 0;  // M1 runs at D=0; Pillar 3 (M3) flips this to 16
+  unsigned difficulty_ = 0;   // V4 PoW target; 0 = no-op (M1–M2), 16 at M3
+  std::uint64_t reward_ = 0;  // per-block coinbase mint; 0 = no coinbase (M1–M2)
   std::vector<CommitDelta> undoLog_;
 };
 

@@ -94,6 +94,7 @@ add_subdirectory(third_party/ed25519_ref10)  # vendored ref10 Ed25519 (no -Werro
 
 add_subdirectory(src)     # txchain_core static library
 add_subdirectory(apps)    # txnode + txchain executables (thin shims)
+add_subdirectory(tools)   # dev tools (mine_bench — difficulty calibration)
 
 if(TXCHAIN_BUILD_TESTS)
   enable_testing()

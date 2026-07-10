@@ -1,10 +1,12 @@
 #pragma once
-// pow module — public interface (txchain_core).
+// pow module — public umbrella header (txchain_core).
 //
-// Phase-0 scaffold (CRE-188): this header only exposes a scaffold marker that
-// proves the module compiles and links into the txchain_core static library.
-// The real pow API lands in a later M0/pillar ticket. This module has no
-// dependency on any sibling module at this stage (acyclic, bottom-up).
+// Candidate block assembly (candidate.hpp) and, in later tickets, the nonce-search
+// miner + cumulative-work fork choice. Depends on chain (coinbase shape, params)
+// and mempool (admission-seq selection), bottom-up. The leading-zero PoW predicate
+// itself lives in crypto (meets_difficulty / block_work).
+
+#include "txchain/pow/candidate.hpp"
 
 namespace txchain::pow {
 

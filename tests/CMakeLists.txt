@@ -71,9 +71,11 @@ target_link_libraries(txchain_chain_tests
 gtest_discover_tests(txchain_chain_tests PROPERTIES LABELS chain)
 
 # M3 Proof-of-Work + coinbase validation (V4 meets_difficulty, coinbase gate,
-# height×REWARD supply term) in connectBlock and replay — one shared predicate.
+# height×REWARD supply term) in connectBlock and replay — one shared predicate —
+# plus candidate assembly (buildCandidate: coinbase-first, ≤8, shadow re-check).
 add_executable(txchain_pow_tests
-  unit/pow_coinbase_test.cpp)
+  unit/pow_coinbase_test.cpp
+  unit/candidate_test.cpp)
 target_link_libraries(txchain_pow_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_pow_tests PROPERTIES LABELS pow)

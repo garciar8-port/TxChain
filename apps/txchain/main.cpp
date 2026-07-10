@@ -9,9 +9,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <string>
 
+#include "txchain/chain/params.hpp"
 #include "txchain/chain/store.hpp"
 #include "txchain/chain/validate.hpp"
 #include "txchain/config.hpp"
@@ -62,7 +64,16 @@ int run_monitor_verify(int argc, char** argv) {
     return txchain::chain::monitor_verify_exit_code(loaded.status);
   }
 
-  const auto result = txchain::chain::replayFromGenesis(loaded.blocks);
+  // Verify at the chain's PoW/reward parameters. Default to the M3 chain (D=16 +
+  // coinbase); `--difficulty <D>` overrides (e.g. `--difficulty 0` for a pre-M3,
+  // no-PoW/no-coinbase chain). reward is on exactly when D > 0.
+  unsigned difficulty = txchain::chain::DIFFICULTY_BITS;
+  const std::string dstr = opt(argc, argv, 3, "--difficulty");
+  if (!dstr.empty()) difficulty = static_cast<unsigned>(std::strtoul(dstr.c_str(), nullptr, 10));
+  const std::uint64_t reward = difficulty > 0 ? txchain::chain::COINBASE_REWARD : 0;
+
+  const auto result = txchain::chain::replayFromGenesis(
+      loaded.blocks, static_cast<std::uint64_t>(std::time(nullptr)), difficulty, reward);
   std::printf("%s\n",
               txchain::chain::monitor_verify_line(result, loaded.blocks.size()).c_str());
   return txchain::chain::monitor_verify_exit_code(result);

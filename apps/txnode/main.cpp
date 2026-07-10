@@ -26,6 +26,7 @@
 #include "txchain/crypto/hashutil.hpp"
 #include "txchain/mempool/mempool.hpp"
 #include "txchain/node/node.hpp"
+#include "txchain/pow.hpp"
 #include "txchain/rpc.hpp"
 #include "txchain/wallet/wallet.hpp"
 
@@ -131,12 +132,44 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Event loop: poll on a short tick; seal when the cadence timer says so. Sealing
-  // mutates the chain, so it runs under the shared lock. sleep_for lives ONLY
-  // here, never in the tested seal step. (Draining the mempool into blocks is M3
-  // candidate assembly; M2 seals empty blocks.)
+  // Event loop. Two mining modes on the SAME binary, chosen by flags:
+  //   PoW (M3):  --mine --difficulty D>0 --seal-cadence 0  → grind a nonce until
+  //              the hash meets D; block production costs ~2^D hashes.
+  //   cadence (M1/M2): --mine --seal-cadence T>0 (D=0)     → timer-driven sealing.
+  const chain::Address miner_addr = wr.wallet.address;  // coinbase pays the node's wallet
+  const bool pow_mode = cfg.mine && cfg.difficulty > 0;
+
   std::uint64_t last_seal_ms = now_millis();
   while (!g_stop.load()) {
+    if (pow_mode) {
+      // Snapshot the tip + mempool under the lock, grind LOCK-FREE, then commit
+      // under the lock only if the tip has not moved ("tip moved under me").
+      pow::Candidate cand;
+      {
+        std::lock_guard<std::mutex> lk(node_mtx);
+        const auto& tip_blk = nd.chain().blockAt(nd.chain().height());
+        cand = pow::buildCandidate(
+            miner_addr, nd.height(), nd.tipHash(), tip_blk.header.timestamp, now_seconds(), mp,
+            [&nd](const chain::Address& a) { return nd.chain().account(a); });
+      }
+      const auto mined = pow::mine(cand, cfg.difficulty, g_stop);
+      if (!mined) continue;  // pre-empted (shutdown / tip advanced)
+      {
+        std::lock_guard<std::mutex> lk(node_mtx);
+        if (nd.height() + 1 == mined->header.index && nd.tipHash() == mined->header.prevHash &&
+            nd.commitBlock(*mined, now_seconds()) == chain::Reason::OK) {
+          if (mined->txns.size() > 1)  // evict the included transfers (tx0 is the coinbase)
+            mp.evictIncluded(
+                std::vector<chain::Txn>(mined->txns.begin() + 1, mined->txns.end()));
+          std::printf("{\"event\":\"block_mined\",\"height\":%llu,\"tip\":\"%s\",\"txns\":%zu}\n",
+                      static_cast<unsigned long long>(nd.height()),
+                      crypto::to_hex(nd.tipHash()).c_str(), mined->txns.size());
+          std::fflush(stdout);
+        }
+      }
+      continue;
+    }
+
     if (node::should_seal_now(cfg, now_millis() - last_seal_ms, /*mempool_size=*/0)) {
       chain::Reason r;
       std::vector<chain::Txn> batch;

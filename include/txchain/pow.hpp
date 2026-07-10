@@ -7,6 +7,7 @@
 // itself lives in crypto (meets_difficulty / block_work).
 
 #include "txchain/pow/candidate.hpp"
+#include "txchain/pow/miner.hpp"
 
 namespace txchain::pow {
 

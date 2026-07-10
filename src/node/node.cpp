@@ -174,7 +174,8 @@ Node Node::boot(const NodeConfig& cfg, std::uint64_t now_s, BootResult& out) {
     out.status = VerifyResult{false, 0, Reason::BAD_LINK, "genesis mismatch"};
     return node;
   }
-  const VerifyResult vr = replayFromGenesis(lr.blocks, now_s);
+  const VerifyResult vr = replayFromGenesis(lr.blocks, now_s, cfg.difficulty,
+                                            cfg.difficulty > 0 ? chain::COINBASE_REWARD : 0);
   if (!vr.ok) {
     out.ok = false;
     out.status = vr;
@@ -210,6 +211,15 @@ Reason Node::seal_next_block(std::uint64_t now_s, const std::vector<Txn>& txns) 
 
   // Durable append + fsync OUTSIDE the (no-op at M1) lock (Concurrency §6).
   store_.appendBlock(b);
+  return Reason::OK;
+}
+
+Reason Node::commitBlock(const Block& b, std::uint64_t now_s) {
+  // connectBlock is the single write path — it re-validates V1–V7 (PoW V4,
+  // coinbase, supply at the chain's D/reward) and atomically commits on OK.
+  const Reason r = chain_.connectBlock(b, now_s);
+  if (r != Reason::OK) return r;
+  store_.appendBlock(b);  // durable append + fsync (the record monitor verify reads)
   return Reason::OK;
 }
 

@@ -37,6 +37,11 @@ namespace txchain::chain {
 Reason applyTxn(std::map<Address, AccountState>& work, const Txn& t,
                 std::uint64_t block_index, std::size_t txn_index) noexcept;
 
+// Build a canonical coinbase txn (Mempool/PoW §4.4): from = 0x00×20, pubkey/sig
+// zero, to = miner, amount = COINBASE_REWARD, nonce = height (BIP-34-style ⇒
+// unique txid per block). The exact shape applyBlockTxns accepts as tx0.
+Txn coinbaseTxn(const Address& to, std::uint64_t height);
+
 // Outcome of applying a whole block's txns (coinbase-aware). detail is the
 // monitor-verify string on failure; txn_index locates the offending txn.
 struct BlockApplyResult {

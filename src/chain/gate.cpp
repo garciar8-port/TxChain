@@ -31,6 +31,15 @@ std::string txn_detail(Reason r, std::size_t ti) {
 }
 }  // namespace
 
+Txn coinbaseTxn(const Address& to, std::uint64_t height) {
+  Txn t;  // from/pubkey/sig default to all-zero (the coinbase sentinels)
+  t.ver = serialize::kTxnVersion;
+  t.to = to;
+  t.amount = COINBASE_REWARD;
+  t.nonce = height;
+  return t;
+}
+
 Reason applyTxn(std::map<Address, AccountState>& work, const Txn& t,
                 std::uint64_t block_index, std::size_t txn_index) noexcept {
   const bool null_from = (t.from == kNullAddr);

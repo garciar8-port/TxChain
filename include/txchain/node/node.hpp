@@ -87,6 +87,11 @@ class Node {
   // Reason otherwise (state untouched — the caller keeps the txns in the mempool).
   chain::Reason seal_next_block(std::uint64_t now_s, const std::vector<chain::Txn>& txns = {});
 
+  // Commit an already-mined block (M3): validate + apply via connectBlock (PoW V4,
+  // coinbase, supply all enforced at the chain's D/reward) then persist
+  // (append+fsync). Returns Reason::OK on success (tip advanced + durable).
+  chain::Reason commitBlock(const chain::Block& b, std::uint64_t now_s);
+
   std::uint64_t height() const { return chain_.height(); }
   chain::Hash256 tipHash() const { return chain_.tipHash(); }
   const NodeConfig& config() const { return cfg_; }
@@ -95,12 +100,17 @@ class Node {
   const chain::Chain& chain() const { return chain_; }
 
  private:
+  // The chain runs at cfg.difficulty; coinbase issuance (reward = COINBASE_REWARD)
+  // turns on exactly when D > 0 — the M3 configuration. At the default D = 0 the
+  // chain is the M1/M2 no-coinbase ledger (reward 0), so nothing regresses.
   Node(NodeConfig cfg, chain::ChainStore store)
-      : cfg_(std::move(cfg)), store_(std::move(store)) {}
+      : cfg_(std::move(cfg)),
+        store_(std::move(store)),
+        chain_(cfg_.difficulty, cfg_.difficulty > 0 ? chain::COINBASE_REWARD : 0) {}
 
   NodeConfig cfg_;
   chain::ChainStore store_;
-  chain::Chain chain_;  // default-constructs to genesis (height 0)
+  chain::Chain chain_;  // constructed at (cfg.difficulty, reward); genesis height 0
 };
 
 }  // namespace txchain::node

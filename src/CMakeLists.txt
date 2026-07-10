@@ -26,6 +26,7 @@ add_library(txchain_core STATIC
   mempool/mempool.cpp
   pow/pow.cpp
   pow/candidate.cpp
+  pow/miner.cpp
   p2p/p2p.cpp
   p2p/frame.cpp
   rpc/rpc.cpp

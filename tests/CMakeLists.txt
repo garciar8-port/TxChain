@@ -75,7 +75,8 @@ gtest_discover_tests(txchain_chain_tests PROPERTIES LABELS chain)
 # plus candidate assembly (buildCandidate: coinbase-first, ≤8, shadow re-check).
 add_executable(txchain_pow_tests
   unit/pow_coinbase_test.cpp
-  unit/candidate_test.cpp)
+  unit/candidate_test.cpp
+  unit/miner_test.cpp)
 target_link_libraries(txchain_pow_tests
   PRIVATE txchain_core txchain_sanitize GTest::gtest_main)
 gtest_discover_tests(txchain_pow_tests PROPERTIES LABELS pow)

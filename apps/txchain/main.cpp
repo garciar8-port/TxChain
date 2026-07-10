@@ -19,6 +19,7 @@
 #include "txchain/config.hpp"
 #include "txchain/crypto/fixedbytes.hpp"
 #include "txchain/crypto/hashutil.hpp"
+#include "txchain/pow.hpp"
 #include "txchain/rpc.hpp"
 #include "txchain/serialize/canonical.hpp"
 #include "txchain/wallet/wallet.hpp"
@@ -30,6 +31,17 @@ std::string opt(int argc, char** argv, int start, const char* flag) {
   for (int i = start; i + 1 < argc; ++i)
     if (std::strcmp(argv[i], flag) == 0) return argv[i + 1];
   return "";
+}
+
+// Decimal string for a 128-bit cumulative-work value.
+std::string u128_str(txchain::chain::Work v) {
+  if (v == 0) return "0";
+  std::string s;
+  while (v > 0) {
+    s.push_back(static_cast<char>('0' + static_cast<int>(v % 10)));
+    v /= 10;
+  }
+  return std::string(s.rbegin(), s.rend());
 }
 
 // txchain monitor verify (--file <chain.jsonl> | --datadir <dir>)
@@ -245,6 +257,57 @@ int run_send(int argc, char** argv) {
   return 1;
 }
 
+// txchain import <file> [--datadir D] [--difficulty D]
+// Validate a competing chain.jsonl from genesis; if strictly heavier than the
+// active chain, whole-chain swap the datadir's chain.jsonl (T2 fork choice).
+// Work never buys validity — an invalid candidate is rejected with its reason.
+int run_import(int argc, char** argv) {
+  if (argc < 3) {
+    std::fprintf(stderr, "usage: txchain import <file> [--datadir D] [--difficulty D]\n");
+    return 2;
+  }
+  const std::string file = argv[2];
+  std::string datadir = opt(argc, argv, 3, "--datadir");
+  if (datadir.empty()) datadir = "./txchain-data";
+  unsigned difficulty = txchain::chain::DIFFICULTY_BITS;
+  const std::string dstr = opt(argc, argv, 3, "--difficulty");
+  if (!dstr.empty()) difficulty = static_cast<unsigned>(std::strtoul(dstr.c_str(), nullptr, 10));
+  const std::uint64_t reward = difficulty > 0 ? txchain::chain::COINBASE_REWARD : 0;
+
+  const auto active_store = txchain::chain::ChainStore::forDatadir(datadir);
+  const auto imported_store = txchain::chain::ChainStore(file);
+  const auto imported = imported_store.load();
+  if (!imported.status.ok) {
+    std::fprintf(stderr, "import: cannot load %s (%s)\n", file.c_str(),
+                 txchain::chain::reasonName(imported.status.reason));
+    return 1;
+  }
+  const auto active = active_store.load();  // may be empty (no active chain yet)
+
+  const auto result = txchain::pow::evaluateImport(
+      active.blocks, imported.blocks, static_cast<std::uint64_t>(std::time(nullptr)), difficulty,
+      reward);
+  if (!result.valid) {
+    std::printf("%s\n",
+                txchain::chain::monitor_verify_line(result.status, imported.blocks.size()).c_str());
+    return 1;  // rejected with its reason enum; active chain untouched
+  }
+  if (!result.won) {
+    std::printf("incumbent retained (active cumWork %s >= candidate %s)\n",
+                u128_str(result.active_work).c_str(), u128_str(result.candidate_work).c_str());
+    return 0;
+  }
+  if (!active_store.rewrite(imported.blocks)) {
+    std::fprintf(stderr, "import: cannot rewrite %s\n", active_store.path().c_str());
+    return 1;
+  }
+  const std::string tip = txchain::crypto::to_hex(imported.blocks.back().header.hash());
+  std::printf("imported: replaced active chain (cumWork %s -> %s), new tip %s height %zu\n",
+              u128_str(result.active_work).c_str(), u128_str(result.candidate_work).c_str(),
+              tip.c_str(), imported.blocks.size() - 1);
+  return 0;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -257,13 +320,16 @@ int main(int argc, char** argv) {
   if (argc >= 2 && std::strcmp(argv[1], "send") == 0) {
     return run_send(argc, argv);
   }
+  if (argc >= 2 && std::strcmp(argv[1], "import") == 0) {
+    return run_import(argc, argv);
+  }
 
   std::printf("txchain: TxChain v2 CLI (core module=%s).\n"
-              "  monitor verify (--file <chain.jsonl> | --datadir <dir>)\n"
+              "  monitor verify (--file <chain.jsonl> | --datadir <dir>) [--difficulty D]\n"
               "  wallet keygen  [--datadir D] [--out F]\n"
               "  wallet address [--datadir D] [--key F]\n"
               "  send --to <40hex> --amount <u64> [--node host:port] [--datadir D | --key F]\n"
-              "  (tip / import land in later tickets)\n",
+              "  import <file> [--datadir D] [--difficulty D]\n",
               txchain::config::module_name());
   return 0;
 }

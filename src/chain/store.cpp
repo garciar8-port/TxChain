@@ -50,6 +50,33 @@ bool ChainStore::appendBlock(const Block& b) const {
   return true;
 }
 
+bool ChainStore::rewrite(const std::vector<Block>& blocks) const {
+  std::string out;
+  for (const Block& b : blocks) out += serialize::to_json_line(b) + "\n";
+
+  const int fd = ::open(path_.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (fd < 0) return false;
+
+  const char* p = out.data();
+  std::size_t remaining = out.size();
+  while (remaining > 0) {
+    const ssize_t w = ::write(fd, p, remaining);
+    if (w < 0) {
+      if (errno == EINTR) continue;
+      ::close(fd);
+      return false;
+    }
+    p += w;
+    remaining -= static_cast<std::size_t>(w);
+  }
+  if (::fsync(fd) != 0) {  // durability barrier — the swap is not committed until fsync
+    ::close(fd);
+    return false;
+  }
+  ::close(fd);
+  return true;
+}
+
 LoadResult ChainStore::load() const {
   LoadResult lr;
 

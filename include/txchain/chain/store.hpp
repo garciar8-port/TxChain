@@ -45,6 +45,10 @@ public:
   // ready for replayFromGenesis.
   LoadResult load() const;
 
+  // Replace the entire chain.jsonl with `blocks` (truncate, write each JSONL line,
+  // fsync) — the T2 whole-chain swap of `txchain import`. Returns false on I/O error.
+  bool rewrite(const std::vector<Block>& blocks) const;
+
 private:
   std::string path_;
 };
